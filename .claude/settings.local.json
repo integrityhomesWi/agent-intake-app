@@ -10,7 +10,8 @@
       "Bash(git init *)",
       "Bash(git add *)",
       "Bash(git commit -m 'Working intake app: 3 types, flagging, voice/type-out/fill-in-blanks input *)",
-      "Bash(git commit -m 'Add WB-11 Offer to Purchase build spec *)"
+      "Bash(git commit -m 'Add WB-11 Offer to Purchase build spec *)",
+      "Bash(git commit -m 'Update WB-11 spec: add deal identifier + Stage 2 MLS extraction map *)"
     ]
   }
 }

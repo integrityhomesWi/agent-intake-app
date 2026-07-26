@@ -20,6 +20,24 @@ The finished system has three stages. Build them in this order. Do not skip ahea
 
 ---
 
+## DEAL IDENTIFIER
+
+Every deal gets ONE identifier that ties intake, MLS sheet, and the draft together.
+Without it, Stage 2 has no way to know which intake an MLS sheet belongs to.
+
+- **App generates its own deal ID at intake, always.** Format: `IH-YYMM-NNNN`
+  (e.g. `IH-2607-0143`) — year+month plus a running sequence. Never collides.
+- **Store MLS# as a matching field** when the deal has a property (offers, listings).
+  The MLS number is already unique and already on the MLS sheet, so it's the natural
+  cross-reference for Stage 2. Buyer-only intakes have no MLS# yet — that's why the
+  generated ID is the true key and MLS# is just a stored field.
+- **Filename** keeps the ID plus human-readable bits so people can find it:
+  `IH-2607-0143_Scott_6207-Old-Indian-Mound.md`
+- **How Karl matches an MLS sheet to a deal:** by deal ID (or picks from a list). The
+  MLS# on the sheet can auto-match if it was stored at intake.
+
+---
+
 ## MARK CONVENTIONS (form-wide)
 
 - App side = checkbox for the agent.
@@ -117,11 +135,32 @@ anything goes out. Never auto-send a contract.
 
 ---
 
-## MLS-SOURCED FIELDS (filled/verified at Stage 2)
+## STAGE 2 — MLS EXTRACTION MAP
 
-condition report date (107) · property address (verify) · included items (verify) ·
-not-included items (verify) · rented items (428) · seller agent name (576) ·
-seller address (588)
+What the engine reads off the SCWMLS sheet and where it lands on the offer.
+Field labels below are the SCWMLS sheet's own labels.
+
+| MLS sheet field | Offer field | Notes |
+|---|---|---|
+| MLS# | Deal identifier (stored) | Unique key; auto-matches to intake if stored |
+| Parcel | (reference) | Backup unique key |
+| Address / City / County | Line 4 / Line 6 / Line 7 | Municipality typed WITH type ("City of Elroy"); verify |
+| List Price | (context) | Compare against agent's offer price — sanity flag |
+| Net Taxes ($ / year) | Tax proration (366-377) | Feeds proration method |
+| Include | Included items (12-16) | Verify; agent can override |
+| Excluded | Not-included (20-23) | Blank on sheet → default "No additional items" holds |
+| Water softener / softener location | Rented items (428) | CAUTION: if listed under *Include* it's OWNED and conveys → 428 stays None. Only flips to 428 if sheet says "rented." |
+| Fuel | Fuel lines (359-361) | If propane/LP → FLAG "check for rented vs owned LP tank" |
+| Listing Agent (LstAg) | Seller's agent name (576) | |
+| Listing firm | (seller agent firm) | |
+| LstAg address | Seller's address (588) | |
+| (RECR — not on MLS sheet) | Condition report date (107) | Stays FLAGGED for Karl; comes from the actual RECR |
+| Remarks / seller notes | (surface for review) | e.g. easements — NOT auto-filled; flag for John's review |
+
+**Test case:** MLS-Sheet.pdf = 410 W Elroy St, Elroy WI 53929, Juneau County, MLS# 2028766,
+list $849,900, net taxes $13,978/2025, LP fuel, softener conveys (Include), agent Julie
+Alibrando / RE/MAX Preferred / PO Box 56, La Valle WI 53941. Easement note in remarks →
+surfaces for review. Use this sheet to validate the parser.
 
 ---
 
