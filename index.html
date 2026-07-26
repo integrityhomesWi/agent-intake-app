@@ -178,6 +178,7 @@
     <h2 id="doneTitle">Intake saved</h2>
     <p id="doneSub"></p>
     <div class="filebox" id="filebox"></div>
+    <div id="driveNote" style="font-size:12.5px; font-weight:600; margin:12px 0 0; min-height:16px;"></div>
     <div class="row">
       <button class="copy" id="copyBtn">Copy file</button>
       <button class="again" id="againBtn">New intake</button>
@@ -191,6 +192,14 @@
 </div>
 
 <script>
+/* ---------- Google Drive backend config ---------- */
+// Once the Apps Script helper is deployed, paste its Web App URL (ends in /exec)
+// between the quotes below. Until then the app still works fully: "Save intake"
+// just shows the file to copy by hand instead of filing it to Drive.
+const DRIVE_ENDPOINT = "";
+// Optional password. If you set one in the Apps Script, put the same word here.
+const DRIVE_SECRET = "";
+
 /* ---------- field definitions per type ---------- */
 const TYPES = {
   buyer: {
@@ -487,7 +496,36 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   document.getElementById('done').style.display='block';
   document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
   window._lastFile=file;
+  saveToDrive(file, missing);
 });
+
+function saveToDrive(file, missing){
+  const note=document.getElementById('driveNote');
+  if(!DRIVE_ENDPOINT){
+    note.textContent="Not yet connected to Google Drive. Use Copy file for now.";
+    note.style.color="var(--muted)";
+    return;
+  }
+  note.textContent="Filing to Google Drive…";
+  note.style.color="var(--muted)";
+  try{
+    fetch(DRIVE_ENDPOINT,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({ name:file.name, body:file.body, type:curType, missing:missing, secret:DRIVE_SECRET })
+    }).then(()=>{
+      note.textContent="✓ Filed to Google Drive · Deal-Files";
+      note.style.color="var(--ok)";
+    }).catch(()=>{
+      note.textContent="Could not reach Drive. Use Copy file as backup.";
+      note.style.color="var(--warn)";
+    });
+  }catch(_){
+    note.textContent="Could not reach Drive. Use Copy file as backup.";
+    note.style.color="var(--warn)";
+  }
+}
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function slug(s){ return (s||"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40); }
