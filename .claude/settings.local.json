@@ -11,7 +11,12 @@
       "Bash(git add *)",
       "Bash(git commit -m 'Working intake app: 3 types, flagging, voice/type-out/fill-in-blanks input *)",
       "Bash(git commit -m 'Add WB-11 Offer to Purchase build spec *)",
-      "Bash(git commit -m 'Update WB-11 spec: add deal identifier + Stage 2 MLS extraction map *)"
+      "Bash(git commit -m 'Update WB-11 spec: add deal identifier + Stage 2 MLS extraction map *)",
+      "mcp__claude-in-chrome__computer",
+      "Bash(base64 -w0 google-drive-backend.gs)",
+      "mcp__claude-in-chrome__javascript_tool",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "mcp__7719fafa-a397-4d2e-9df0-f1593bc109da__search_files"
     ]
   }
 }
