@@ -64,6 +64,7 @@ Every required field uses the same rule: **prompt if missing, allow submit anywa
 - The app connects to Google Drive through its OWN Google credentials (not the Claude/Cowork connector, which had write problems). Set up a clean, correctly-scoped Google connection for the app.
 - Required-field behavior is prompt-if-missing, never block.
 - Retired systems — do NOT reference or wire to: Bolt (Real Brokerage transaction platform), ClickUp, the old Firebase transaction app. The new system is the replacement for this tracking; it does not integrate with any of them.
+- Data model (source of truth): each deal is ONE markdown file in the Deal-Files folder, and that file IS the source of truth. It is a LIVE system, not an import. The intake app creates the deal's file; the Command Center dashboard reads all deal files live to show current deals and writes edits (milestones, statuses, dates, goals) back into that deal's own file. No Bolt/import step, no separate database. The deal ID (IH-YYMM-NNNN, see WB-11-Build-Spec.md) names the file and ties intake, MLS, offer draft, and dashboard together.
 
 ## How to work with John
 
