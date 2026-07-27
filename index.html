@@ -496,10 +496,10 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   document.getElementById('done').style.display='block';
   document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
   window._lastFile=file;
-  saveToDrive(file, missing);
+  saveToDrive(missing, vals);
 });
 
-function saveToDrive(file, missing){
+function saveToDrive(missing, vals){
   const note=document.getElementById('driveNote');
   if(!DRIVE_ENDPOINT){
     note.textContent="Not yet connected to Google Drive. Use Copy file for now.";
@@ -508,12 +508,14 @@ function saveToDrive(file, missing){
   }
   note.textContent="Filing to Google Drive…";
   note.style.color="var(--muted)";
+  // Send the structured intake; the backend assigns the deal ID and builds the deal file.
+  const intake=Object.assign({type:curType, missing:missing}, vals);
   try{
     fetch(DRIVE_ENDPOINT,{
       method:"POST",
       mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({ name:file.name, body:file.body, type:curType, missing:missing, secret:DRIVE_SECRET })
+      body:JSON.stringify({ action:"intake", intake:intake, secret:DRIVE_SECRET })
     }).then(()=>{
       note.textContent="✓ Filed to Google Drive · Deal-Files";
       note.style.color="var(--ok)";

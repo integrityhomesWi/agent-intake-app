@@ -16,7 +16,17 @@
       "Bash(base64 -w0 google-drive-backend.gs)",
       "mcp__claude-in-chrome__javascript_tool",
       "mcp__claude-in-chrome__tabs_create_mcp",
-      "mcp__7719fafa-a397-4d2e-9df0-f1593bc109da__search_files"
+      "mcp__7719fafa-a397-4d2e-9df0-f1593bc109da__search_files",
+      "Bash(py --version)",
+      "Bash(npx --version)",
+      "Bash(cloudflared --version)",
+      "Bash(ssh -V)",
+      "Bash(python -m http.server 8000)",
+      "Bash(curl -s -o /dev/null -w \"local server HTTP %{http_code}\\\\n\" http://localhost:8000/index.html)",
+      "Bash(ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -R 80:localhost:8000 nokey@localhost.run)",
+      "Bash(break)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://2986cb97cbba59.lhr.life/)",
+      "Bash(curl -s https://2986cb97cbba59.lhr.life/)"
     ]
   }
 }
