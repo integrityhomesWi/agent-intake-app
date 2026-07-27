@@ -63,7 +63,7 @@ Every required field uses the same rule: **prompt if missing, allow submit anywa
 - Storage is markdown files in Google Drive. Airtable was considered and rejected. Do not reintroduce it.
 - The app connects to Google Drive through its OWN Google credentials (not the Claude/Cowork connector, which had write problems). Set up a clean, correctly-scoped Google connection for the app.
 - Required-field behavior is prompt-if-missing, never block.
-- Retired systems — do NOT reference or wire to: ClickUp, the old Firebase transaction app.
+- Retired systems — do NOT reference or wire to: Bolt (Real Brokerage transaction platform), ClickUp, the old Firebase transaction app. The new system is the replacement for this tracking; it does not integrate with any of them.
 
 ## How to work with John
 
