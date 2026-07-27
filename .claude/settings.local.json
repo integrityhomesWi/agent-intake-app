@@ -26,7 +26,8 @@
       "Bash(ssh -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60 -R 80:localhost:8000 nokey@localhost.run)",
       "Bash(break)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://2986cb97cbba59.lhr.life/)",
-      "Bash(curl -s https://2986cb97cbba59.lhr.life/)"
+      "Bash(curl -s https://2986cb97cbba59.lhr.life/)",
+      "Bash(git commit -m 'Live system part 2: Command Center reads deals live and writes edits back *)"
     ]
   }
 }
