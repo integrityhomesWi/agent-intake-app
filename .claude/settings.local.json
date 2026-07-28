@@ -27,7 +27,12 @@
       "Bash(break)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://2986cb97cbba59.lhr.life/)",
       "Bash(curl -s https://2986cb97cbba59.lhr.life/)",
-      "Bash(git commit -m 'Live system part 2: Command Center reads deals live and writes edits back *)"
+      "Bash(git commit -m 'Live system part 2: Command Center reads deals live and writes edits back *)",
+      "Bash(curl -s \"https://script.google.com/macros/s/AKfycbxMndXZKXbCir50z4KFIw-F_WGtKuzCPexqDl092pQIfUjJmYPhvD6Jhh3eq5ytKdsRtQ/exec\" -L)",
+      "Bash(curl -s \"https://script.google.com/macros/s/AKfycbxMndXZKXbCir50z4KFIw-F_WGtKuzCPexqDl092pQIfUjJmYPhvD6Jhh3eq5ytKdsRtQ/exec?action=list\" -L)",
+      "Bash(node -e ' *)",
+      "Bash(base64 -w0 seed-deals-final.gs)",
+      "Bash(echo \"var B64 = '$\\(base64 -w0 seed-deals-final.gs\\)';\")"
     ]
   }
 }
