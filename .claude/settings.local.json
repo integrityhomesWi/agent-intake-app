@@ -32,7 +32,13 @@
       "Bash(curl -s \"https://script.google.com/macros/s/AKfycbxMndXZKXbCir50z4KFIw-F_WGtKuzCPexqDl092pQIfUjJmYPhvD6Jhh3eq5ytKdsRtQ/exec?action=list\" -L)",
       "Bash(node -e ' *)",
       "Bash(base64 -w0 seed-deals-final.gs)",
-      "Bash(echo \"var B64 = '$\\(base64 -w0 seed-deals-final.gs\\)';\")"
+      "Bash(echo \"var B64 = '$\\(base64 -w0 seed-deals-final.gs\\)';\")",
+      "Bash(cmd //c start \"\" \"command-center.html\")",
+      "mcp__claude-in-chrome__read_console_messages",
+      "Bash(node --check extracted.js)",
+      "Bash(node --check C:/Users/admin/AppData/Local/Temp/claude/C--Users-admin-OneDrive-Desktop-Intake/e46f39d3-b59f-4f99-9ab8-d99cff1ed4d5/scratchpad/check.js)",
+      "Bash(git commit -m 'Add System Brain Notes: the why behind the tracker + intake system *)",
+      "Bash(git commit -m 'Update local Claude Code permission allowlist *)"
     ]
   }
 }
