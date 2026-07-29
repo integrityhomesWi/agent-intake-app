@@ -2,7 +2,7 @@
 
 Built from our call. This is the phase-one build (the cheap, buildable piece) plus the phase-two roadmap for contract auto-drafting.
 
-> **FLAG (unresolved as of 2026-07-29):** This document's "BUILD STATUS — DONE" section describes an Airtable base ("IH Offer Drafting System") and Google Forms as the live intake system. CLAUDE.md explicitly states: "Storage is markdown files in Google Drive. Airtable was considered and rejected. Do not reintroduce it." These two documents directly conflict. Confirm with John whether the Airtable build below is abandoned (superseded by the Drive/markdown-file system in index.html + command-center.html) or still in active use before treating anything below as current.
+> **RESOLVED (2026-07-29):** John confirmed the Airtable base described below was abandoned — Google Drive/markdown files (index.html + command-center.html) is the one real system going forward. Everything below is historical context on how this design evolved, not a live system. Do not build against the Airtable/Google Forms plan described here.
 
 The core principle from our conversation: make Michele's job **90 seconds**, test that she'll actually do it on one real deal, and only *then* build the expensive automation on top. Prove the intake before you build the mansion.
 

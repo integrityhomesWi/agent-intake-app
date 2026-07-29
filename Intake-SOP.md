@@ -3,7 +3,7 @@
 **Folder:** `8 - Transaction Coordination/Deal-Files/` (john@integrityhomeswi.com Drive)
 **Purpose:** Catch a new buyer or new listing the moment Michele (or any agent) hands it off, as a single markdown file per client/property, so the back office can act without anyone touching a database. This is the front door that feeds the Deal-Files system once a deal goes under contract.
 
-> **Note (superseded):** This SOP describes only two intake types (Buyer, Listing). CLAUDE.md and the built app (index.html) use THREE types — Buyer, Buyer-Offer, and Seller/Listing. Confirm with John which is current before treating this as the live SOP.
+> **RESOLVED (2026-07-29):** John confirmed three intake types are correct going forward: **Buyer** (new buyer — Agency or Pre-Agency Showing Agreement), **Buyer-Offer** (writing on a specific house), and **Seller/Listing**. This SOP predates Buyer-Offer as its own type — see CLAUDE.md and the built app (index.html) for the current three-type spec. The Buyer and Listing sections below are otherwise still accurate.
 
 ## Core rule
 

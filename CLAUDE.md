@@ -17,7 +17,7 @@ The front end already exists as a single self-contained HTML file (`index.html`)
 
 Every required field uses the same rule: **prompt if missing, allow submit anyway, flag clearly on the file.** Never hard-block the agent. A missing field becomes a visible flag, never a hidden gap.
 
-1. **Buyer** (new buyer lead)
+1. **Buyer** (new buyer — Agency or Pre-Agency Showing Agreement)
    Required: Client name(s), Best phone, Email, Pre-approval status.
    Optional: Price range, Areas/must-haves, Notes.
 
