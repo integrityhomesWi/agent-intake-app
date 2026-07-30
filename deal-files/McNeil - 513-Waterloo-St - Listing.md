@@ -27,7 +27,7 @@ List $229,900 · Current $229,900 · Last cut N/A
 
 | Field | Value |
 | --- | --- |
-| Sign post | Installed |
+| Sign post | Removed |
 | Sign | Yes |
 | Lockbox | Supra |
 | Title search | Done |

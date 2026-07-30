@@ -1,11 +1,13 @@
 # 15770 US Hwy 14, Akan, WI 53581
 
 Listing · Michele Sullivan · Active
-List $399,900 · Current $399,900 · Last cut N/A
+List $399,900 · Current $374,900 · Last cut N/A
 
 ## Seller
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Seller(s) | Rachel Stanley (rachelelaine2023@gmail.com) |
 
 ## Listing checklist
 
@@ -13,7 +15,7 @@ _Nothing recorded._
 
 ## Notes
 
-Listed 6/16/26 · 4bd
+Listed 6/16/26 · 4bd · Comm 5% / co-op 2.5% · Price cut to $374,900 per Amendment No.1 · Farm condition report attached but blank and unsigned
 
 
 ---

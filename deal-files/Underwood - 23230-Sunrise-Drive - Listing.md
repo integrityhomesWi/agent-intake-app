@@ -1,11 +1,13 @@
 # 23230 Sunrise Drive, Richland, WI 54655
 
 Listing · Michele Sullivan · Active
-List $289,900 · Current $289,900 · Last cut 6/4/2026
+List $289,900 · Current $279,900 · Last cut 6/4/2026
 
 ## Seller
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Seller(s) | Shawn Underwood (thebatcavewi@gmail.com) |
 
 ## Listing checklist
 
@@ -13,7 +15,7 @@ _Nothing recorded._
 
 ## Notes
 
-Listed 5/18/26 · 3bd, 5.6ac
+Listed 5/18/26 · 3bd, 5.6ac · Comm 5% / co-op 2.5% · Price cut to $279,900 per Amendment No.1
 
 
 ---

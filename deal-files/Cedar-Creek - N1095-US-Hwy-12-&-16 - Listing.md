@@ -5,7 +5,9 @@ List $575,900 · Current $474,900 · Last cut 6/12/2026
 
 ## Seller
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Seller(s) | Cedar Creek Rustic Village LLC - Sandy Lapointe & Barbara J Doyal (cedarcreekrusticvillage@gmail.com) |
 
 ## Listing checklist
 
@@ -13,7 +15,7 @@ _Nothing recorded._
 
 ## Notes
 
-Commercial · listed 5/14/26
+Commercial · listed 5/14/26 · Comm 6% / co-op 3% · Gaming machines and dishwasher are rented, excluded
 
 
 ---

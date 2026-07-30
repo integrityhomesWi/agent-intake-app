@@ -5,7 +5,9 @@ List $595,000 · Current $595,000 · Last cut N/A
 
 ## Seller
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Seller(s) | Michael Coconate (mcoconate@gmail.com) |
 
 ## Listing checklist
 
@@ -13,7 +15,7 @@ _Nothing recorded._
 
 ## Notes
 
-Commercial · listed 3/20/26
+Commercial · listed 3/20/26 · VERIFY COMMISSION: two signed listing contracts on file for this property, a commercial one at 2% and a residential one at 4%
 
 
 ---

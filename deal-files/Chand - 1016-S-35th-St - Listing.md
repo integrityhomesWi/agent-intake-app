@@ -27,7 +27,7 @@ List $154,900 · Current $154,900
 
 | Field | Value |
 | --- | --- |
-| Sign post | No |
+| Sign post | N/A |
 | Sign | No |
 | Lockbox | Combo |
 | Lockbox code | 1012 |

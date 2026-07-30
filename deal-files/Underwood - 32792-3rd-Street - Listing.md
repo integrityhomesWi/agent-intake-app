@@ -1,11 +1,13 @@
 # 32792 3rd Street, Buena Vista, WI 53540
 
 Listing · Michele Sullivan · Active
-List $174,900 · Current $174,900 · Last cut N/A
+List $174,900 · Current $164,000 · Last cut N/A
 
 ## Seller
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Seller(s) | Shawn Underwood (thebatcavewi@gmail.com) |
 
 ## Listing checklist
 
@@ -13,7 +15,7 @@ _Nothing recorded._
 
 ## Notes
 
-Listed 5/18/26
+Listed 5/18/26 · Comm 6% / co-op 3% · Price cut to $164,000 per Amendment No.1
 
 
 ---

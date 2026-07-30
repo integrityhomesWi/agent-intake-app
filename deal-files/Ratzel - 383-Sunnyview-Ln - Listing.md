@@ -5,7 +5,7 @@ Accepted 6/26/2026 · Closing 8/3/2026 · 4 days out · Health: Yellow
 
 ## Action needed
 
-Seller-provided pest inspection report was due ~7/24 (≥10 days pre-close) — confirm it went out. Inspection + appraisal dates unconfirmed. VA loan · $10K seller credit · seller pays buyer firm 2.75%.
+CLOSING SCHEDULED: Monday 8/3 at 10:00 AM at Atlas Title, 5201 E Terrace Dr Ste 180, Madison WI 53718. Seller-provided pest inspection report was due ~7/24 (>=10 days pre-close) - confirm it went out. Inspection + appraisal dates unconfirmed. Financing TBD. VA loan · $10K seller credit · seller pays buyer firm 2.75%.
 
 ## Milestones
 
@@ -27,7 +27,7 @@ Seller-provided pest inspection report was due ~7/24 (≥10 days pre-close) — 
 | Seller(s) | Karl & Desiree Ratzel |
 | Co-op agent | Stark Company Realtors, Sun Prairie |
 | Lender | Veterans United Home Loans (VA) |
-| Title company | Atlas Title |
+| Title company | Atlas Title · 5201 E Terrace Dr, Ste 180, Madison, WI 53718 |
 
 
 ## Listing record
@@ -46,7 +46,7 @@ Listing · John Reuter · Active w/Offer
 | Field | Value |
 | --- | --- |
 | Pictures | Done |
-| Sign post | Installed |
+| Sign post | Removed |
 | Sign | Yes |
 | Lockbox | Supra |
 | Title search | Ordered |

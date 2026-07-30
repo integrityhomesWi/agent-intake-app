@@ -275,8 +275,44 @@ function get(url) {
     fs.writeFileSync(path.join(OUT_DIR, name), body + footer, 'utf8');
   }
 
+  // Also emit one combined file. A Claude Project takes a single upload far
+  // more easily than 53, and refreshing means replacing one file instead of
+  // reconciling 53.
+  const order = { active: 0, listing: 1, closed: 2, buyerlead: 3 };
+  const label = { active: 'Active transactions', listing: 'Listings', closed: 'Closed and cancelled', buyerlead: 'Buyer leads' };
+  const all = [...groups.values()].sort((a, b) => {
+    const ra = a.active ? 'active' : a.listing ? 'listing' : a.closed ? 'closed' : 'buyerlead';
+    const rb = b.active ? 'active' : b.listing ? 'listing' : b.closed ? 'closed' : 'buyerlead';
+    return order[ra] - order[rb];
+  });
+  let combined = '# Integrity Homes - all transactions\n\n' +
+    'Every deal in the IH Live Transaction Tracker as of ' + (stamp || 'this run') + '.\n' +
+    'The sheet is the source of truth. This file is a snapshot and starts aging\n' +
+    'the moment it is written, so re-run `node make-deal-files.js` and replace it\n' +
+    'rather than editing anything here.\n\n';
+  let lastSection = '';
+  for (const g of all) {
+    const kind = g.active ? 'active' : g.listing ? 'listing' : g.closed ? 'closed' : 'buyerlead';
+    if (kind !== lastSection) {
+      combined += '\n---\n\n# ' + label[kind] + '\n\n';
+      lastSection = kind;
+    }
+    let body = '';
+    if (g.buyerlead) body = buyerDoc(g.buyerlead);
+    else {
+      const demote = s => s.replace(/^#\s.*\r?\n+/, '');
+      if (g.active) body += activeDoc(g.active);
+      if (g.closed) body += body ? '\n### Closing record\n\n' + demote(closedDoc(g.closed)) : closedDoc(g.closed);
+      if (g.listing) body += body ? '\n### Listing record\n\n' + demote(listingDoc(g.listing)) : listingDoc(g.listing);
+    }
+    // Demote every heading one level so each deal nests under its section.
+    combined += body.replace(/^(#{1,3}) /gm, '#$1 ') + '\n';
+  }
+  fs.writeFileSync(path.join(OUT_DIR, '_ALL-TRANSACTIONS.md'), combined, 'utf8');
+
   console.log('Wrote ' + written.length + ' deal files into deal-files/ from ' + rows.length + ' sheet rows');
   console.log('  ' + merged + ' properties had rows on more than one tab and were combined into one file');
+  console.log('  plus _ALL-TRANSACTIONS.md, one file with everything, for uploading to a Claude Project');
   // Apps Script keeps the connection alive, which leaves node hanging after the
   // work is done. Nothing is pending at this point, so exit.
   process.exit(0);

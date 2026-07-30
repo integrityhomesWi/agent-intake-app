@@ -9,7 +9,11 @@ _Nothing recorded._
 
 ## Listing checklist
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Sign post | Removed |
+| Sign | No |
+| Lockbox | Supra |
 
 ## Notes
 

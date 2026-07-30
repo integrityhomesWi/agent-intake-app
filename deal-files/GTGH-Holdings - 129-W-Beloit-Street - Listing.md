@@ -43,7 +43,11 @@ Listing · John Reuter · Active w/Offer
 
 ## Listing checklist
 
-_Nothing recorded._
+| Field | Value |
+| --- | --- |
+| Sign post | None |
+| Sign | No |
+| Lockbox | N/A |
 
 ## Notes
 
