@@ -25,7 +25,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-5';
+var BUILD = 'sheets-6';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -149,6 +149,15 @@ function colsFor_(tab) {
   return COLS_BUYERLEADS;
 }
 
+// Trims, lowercases, and collapses internal whitespace runs to one space, so
+// "706 E Mason Dr, Edgerton, WI" typed with different spacing or casing still
+// matches the same row. It does NOT paper over a genuinely different address
+// (e.g. one copy missing the zip) - that's a real data mismatch, and the row
+// should correctly fail to be found rather than silently match the wrong row.
+function normKey_(s) {
+  return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function saveField_(tab, key, updates) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName(tab);
@@ -158,9 +167,10 @@ function saveField_(tab, key, updates) {
   var lastRow = sheet.getLastRow();
   var keyCol = 1;
   var rowNum = -1;
+  var wantKey = normKey_(key);
   for (var r = headerRowOf_(sheet, cols[0]) + 1; r <= lastRow; r++) {
     var v = sheet.getRange(r, keyCol).getValue();
-    if (String(v).trim() === String(key).trim()) { rowNum = r; break; }
+    if (normKey_(v) === wantKey) { rowNum = r; break; }
   }
   if (rowNum === -1) return { ok: false, error: 'row not found for key: ' + key };
 
