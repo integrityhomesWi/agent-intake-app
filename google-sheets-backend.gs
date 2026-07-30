@@ -25,7 +25,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-6';
+var BUILD = 'sheets-7';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -33,8 +33,12 @@ var TAB_LISTINGS = 'Listings';
 var TAB_BUYERLEADS = 'Buyer Leads';
 var TAB_CLOSED = 'Closed 2026';
 
-var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company'];
-var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes'];
+// Columns are only ever APPENDED to the right-hand end of these lists. Position
+// in the list IS the column position in the sheet, so inserting one in the
+// middle would silently shift every value after it into the wrong field.
+// Any change here must be recorded in SHEET-FORMAT-LOG.md.
+var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp'];
+var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp'];
 var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes'];
 var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status'];
 
@@ -97,11 +101,33 @@ function headerRowOf_(sheet, firstCol) {
   return 1;
 }
 
+// Writes any header this script expects but the sheet does not have yet, and
+// widens the grid if it is too narrow. Only ever fills a BLANK header cell and
+// only at the end, so it can never rename or displace a column someone is
+// already using. Runs on read as well as write so a new column appears the
+// first time anything touches the tab, without a manual step.
+function ensureHeaders_(sheet, cols) {
+  var hdr = headerRowOf_(sheet, cols[0]);
+  var max = sheet.getMaxColumns();
+  if (max < cols.length) sheet.insertColumnsAfter(max, cols.length - max);
+  var have = sheet.getRange(hdr, 1, 1, cols.length).getDisplayValues()[0];
+  var changed = false;
+  for (var c = 0; c < cols.length; c++) {
+    if (String(have[c]).trim() === '') { have[c] = cols[c]; changed = true; }
+  }
+  if (changed) {
+    var rng = sheet.getRange(hdr, 1, 1, cols.length);
+    rng.setValues([have]);
+    rng.setFontWeight('bold');
+  }
+  return hdr;
+}
+
 function readTab_(ss, tabName, cols, source) {
   var sheet = ss.getSheetByName(tabName);
   if (!sheet) return [];
   var lastRow = sheet.getLastRow();
-  var hdr = headerRowOf_(sheet, cols[0]);
+  var hdr = ensureHeaders_(sheet, cols);
   if (lastRow <= hdr) return [];
   var range = sheet.getRange(hdr + 1, 1, lastRow - hdr, cols.length);
   var values = range.getValues();
@@ -163,12 +189,13 @@ function saveField_(tab, key, updates) {
   var sheet = ss.getSheetByName(tab);
   if (!sheet) return { ok: false, error: 'no such tab: ' + tab };
   var cols = colsFor_(tab);
+  var hdrRow = ensureHeaders_(sheet, cols);
 
   var lastRow = sheet.getLastRow();
   var keyCol = 1;
   var rowNum = -1;
   var wantKey = normKey_(key);
-  for (var r = headerRowOf_(sheet, cols[0]) + 1; r <= lastRow; r++) {
+  for (var r = hdrRow + 1; r <= lastRow; r++) {
     var v = sheet.getRange(r, keyCol).getValue();
     if (normKey_(v) === wantKey) { rowNum = r; break; }
   }
