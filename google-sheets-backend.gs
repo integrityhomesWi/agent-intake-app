@@ -68,14 +68,15 @@ function doPost(e) {
 
 function listDeals_() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
+  var tz = ss.getSpreadsheetTimeZone();
   var out = [];
-  out = out.concat(readTab_(ss, TAB_ACTIVE, COLS_ACTIVE, 'active'));
-  out = out.concat(readTab_(ss, TAB_LISTINGS, COLS_LISTINGS, 'listing'));
-  out = out.concat(readTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS, 'buyerlead'));
+  out = out.concat(readTab_(ss, TAB_ACTIVE, COLS_ACTIVE, 'active', tz));
+  out = out.concat(readTab_(ss, TAB_LISTINGS, COLS_LISTINGS, 'listing', tz));
+  out = out.concat(readTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS, 'buyerlead', tz));
   return out;
 }
 
-function readTab_(ss, tabName, cols, source) {
+function readTab_(ss, tabName, cols, source, tz) {
   var sheet = ss.getSheetByName(tabName);
   if (!sheet) return [];
   var lastRow = sheet.getLastRow();
@@ -84,21 +85,25 @@ function readTab_(ss, tabName, cols, source) {
   var out = [];
   for (var i = 0; i < values.length; i++) {
     var row = values[i];
-    var keyCol = cols[0]; // Address for active/listing, Client Name(s) for buyerlead
     var key = row[0];
     if (!key) continue; // skip blank rows
     var rec = { source: source, tab: tabName, rowNum: i + 2, key: String(key) };
     for (var c = 0; c < cols.length; c++) {
-      rec[slugCol_(cols[c])] = formatCell_(row[c]);
+      rec[slugCol_(cols[c])] = formatCell_(row[c], tz);
     }
     out.push(rec);
   }
   return out;
 }
 
-function formatCell_(v) {
+// IMPORTANT: dates in this sheet must be formatted using the SPREADSHEET's own
+// timezone (not the script project's default timezone), or every date reads back
+// one day off. Caught this during testing 2026-07-29 - closing/accepted dates
+// were showing a day early, which is exactly the kind of silent wrong-answer
+// bug that erodes trust in a live tracker.
+function formatCell_(v, tz) {
   if (v instanceof Date) {
-    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'M/d/yyyy');
+    return Utilities.formatDate(v, tz, 'M/d/yyyy');
   }
   return v;
 }
@@ -151,7 +156,7 @@ function appendActiveFromOffer_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_ACTIVE, COLS_ACTIVE);
   var flags = [];
   if (it.missing && it.missing.length) flags.push('MISSING: ' + it.missing.join(', '));
-  flags.push('New offer submitted ' + isoDate_() + ', awaiting acceptance.');
+  flags.push('New offer submitted ' + isoDate_(ss.getSpreadsheetTimeZone()) + ', awaiting acceptance.');
   var row = [
     it.address || '', 'Buy', it.agent || '', it.price || '',
     '', // Accepted - blank until actually accepted
@@ -166,7 +171,7 @@ function appendListingFromSeller_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_LISTINGS, COLS_LISTINGS);
   var notes = [];
   if (it.missing && it.missing.length) notes.push('MISSING: ' + it.missing.join(', '));
-  notes.push('New lead ' + isoDate_() + '. Anticipated list date: ' + (it.listdate || 'TBD') + '.');
+  notes.push('New lead ' + isoDate_(ss.getSpreadsheetTimeZone()) + '. Anticipated list date: ' + (it.listdate || 'TBD') + '.');
   if (it.notes) notes.push(it.notes);
   var row = [
     it.address || '', it.agent || '', 'New Lead', '', '', '', '', '', '', '', '', '', '',
@@ -183,7 +188,7 @@ function appendBuyerLead_(ss, it) {
   if (it.notes) notes.push(it.notes);
   var row = [
     it.names || '', it.phone || '', it.email || '', it.preapproval || '',
-    it.pricerange || '', it.areas || '', it.agent || '', isoDate_(), notes.join(' ')
+    it.pricerange || '', it.areas || '', it.agent || '', isoDate_(ss.getSpreadsheetTimeZone()), notes.join(' ')
   ];
   sheet.appendRow(row);
   return { tab: TAB_BUYERLEADS, row: sheet.getLastRow() };
@@ -201,9 +206,9 @@ function getOrCreateTab_(ss, name, cols) {
 
 /* ---------------- helpers ---------------- */
 
-function isoDate_() {
+function isoDate_(tz) {
   var d = new Date();
-  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'M/d/yyyy');
+  return Utilities.formatDate(d, tz, 'M/d/yyyy');
 }
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
