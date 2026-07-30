@@ -197,13 +197,13 @@
 </div>
 
 <script>
-/* ---------- Google Drive backend config ---------- */
-// Once the Apps Script helper is deployed, paste its Web App URL (ends in /exec)
-// between the quotes below. Until then the app still works fully: "Save intake"
-// just shows the file to copy by hand instead of filing it to Drive.
-const DRIVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbxMndXZKXbCir50z4KFIw-F_WGtKuzCPexqDl092pQIfUjJmYPhvD6Jhh3eq5ytKdsRtQ/exec";
-// Optional password. If you set one in the Apps Script, put the same word here.
-const DRIVE_SECRET = "";
+/* ---------- backend config ---------- */
+// A finished intake goes straight into the "IH Live Transaction Tracker" Google
+// Sheet, which is the source of truth for every deal: a Buyer-Offer becomes a
+// row on Active Transactions, a Seller becomes a row on Listings, and a Buyer
+// becomes a row on Buyer Leads. If this is ever blank the app still works, it
+// just shows the file to copy by hand instead of filing it.
+const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
 
 /* ---------- field definitions per type ---------- */
 const TYPES = {
@@ -211,6 +211,7 @@ const TYPES = {
     label:"Buyer",
     title:"New buyer",
     fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose client this is"},
       {key:"names", lab:"Client name(s)", req:true},
       {key:"phone", lab:"Best phone", req:true},
       {key:"email", lab:"Email", req:true},
@@ -224,6 +225,7 @@ const TYPES = {
     label:"Buyer-Offer",
     title:"Buyer writing an offer",
     fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose deal this is"},
       {key:"names", lab:"Buyer name(s)", req:true},
       {key:"phone", lab:"Best phone", req:true},
       {key:"email", lab:"Email", req:true},
@@ -239,6 +241,7 @@ const TYPES = {
     label:"Seller",
     title:"New listing",
     fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose listing this is"},
       {key:"address", lab:"Property address", req:true},
       {key:"names", lab:"Seller name(s)", req:true},
       {key:"phone", lab:"Best phone", req:true},
@@ -488,7 +491,13 @@ function updateFlagbar(){
 }
 
 /* ---------- build the file ---------- */
+// One submit per intake. The send is fire-and-forget, so the app cannot tell a
+// success from a failure, and every tap that gets through adds another row. Two
+// taps used to mean the office got the same deal twice.
+let _submitted=false;
 document.getElementById('submitBtn').addEventListener('click',()=>{
+  if(_submitted) return;
+  _submitted=true;
   const vals=collectFields();
   const missing=missingReq();
   const file=buildFile(vals,missing);
@@ -506,30 +515,30 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
 
 function saveToDrive(missing, vals){
   const note=document.getElementById('driveNote');
-  if(!DRIVE_ENDPOINT){
-    note.textContent="Not yet connected to Google Drive. Use Copy file for now.";
+  if(!SHEET_ENDPOINT){
+    note.textContent="Not connected yet. Use Copy file for now.";
     note.style.color="var(--muted)";
     return;
   }
-  note.textContent="Filing to Google Drive…";
+  note.textContent="Sending to the office…";
   note.style.color="var(--muted)";
-  // Send the structured intake; the backend assigns the deal ID and builds the deal file.
+  // The backend decides which tab this belongs on and adds the row.
   const intake=Object.assign({type:curType, missing:missing}, vals);
   try{
-    fetch(DRIVE_ENDPOINT,{
+    fetch(SHEET_ENDPOINT,{
       method:"POST",
       mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({ action:"intake", intake:intake, secret:DRIVE_SECRET })
+      body:JSON.stringify({ action:"intake", intake:intake })
     }).then(()=>{
-      note.textContent="✓ Filed to Google Drive · Deal-Files";
+      note.textContent="✓ Sent to the office";
       note.style.color="var(--ok)";
     }).catch(()=>{
-      note.textContent="Could not reach Drive. Use Copy file as backup.";
+      note.textContent="Could not send. Use Copy file as backup.";
       note.style.color="var(--warn)";
     });
   }catch(_){
-    note.textContent="Could not reach Drive. Use Copy file as backup.";
+    note.textContent="Could not send. Use Copy file as backup.";
     note.style.color="var(--warn)";
   }
 }
@@ -647,7 +656,7 @@ document.getElementById('againBtn').addEventListener('click',()=>{
   document.getElementById('done').style.display='none';
   document.querySelectorAll('.type').forEach(t=>t.classList.remove('on'));
   document.getElementById('stage').style.display='none';
-  curType=null; transcript="";
+  curType=null; transcript=""; _submitted=false;
   window.scrollTo({top:0,behavior:'smooth'});
 });
 </script>
