@@ -23,6 +23,10 @@
  *   Deploy > Manage deployments > (pencil) edit > Version: New version > Deploy.
  */
 
+// Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
+// the outside which build is actually live instead of guessing.
+var BUILD = 'sheets-4';
+
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
 var TAB_LISTINGS = 'Listings';
@@ -41,7 +45,7 @@ function doGet(e) {
     if (p.callback) return js_(p.callback, payload);
     return json_(payload);
   }
-  return json_({ ok: true, service: 'Integrity Homes Sheets backend', ready: true });
+  return json_({ ok: true, service: 'Integrity Homes Sheets backend', build: BUILD, ready: true });
 }
 
 function doPost(e) {
@@ -68,20 +72,21 @@ function doPost(e) {
 
 function listDeals_() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var tz = ss.getSpreadsheetTimeZone();
   var out = [];
-  out = out.concat(readTab_(ss, TAB_ACTIVE, COLS_ACTIVE, 'active', tz));
-  out = out.concat(readTab_(ss, TAB_LISTINGS, COLS_LISTINGS, 'listing', tz));
-  out = out.concat(readTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS, 'buyerlead', tz));
+  out = out.concat(readTab_(ss, TAB_ACTIVE, COLS_ACTIVE, 'active'));
+  out = out.concat(readTab_(ss, TAB_LISTINGS, COLS_LISTINGS, 'listing'));
+  out = out.concat(readTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS, 'buyerlead'));
   return out;
 }
 
-function readTab_(ss, tabName, cols, source, tz) {
+function readTab_(ss, tabName, cols, source) {
   var sheet = ss.getSheetByName(tabName);
   if (!sheet) return [];
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
-  var values = sheet.getRange(2, 1, lastRow - 1, cols.length).getValues();
+  var range = sheet.getRange(2, 1, lastRow - 1, cols.length);
+  var values = range.getValues();
+  var shown = range.getDisplayValues();
   var out = [];
   for (var i = 0; i < values.length; i++) {
     var row = values[i];
@@ -89,23 +94,24 @@ function readTab_(ss, tabName, cols, source, tz) {
     if (!key) continue; // skip blank rows
     var rec = { source: source, tab: tabName, rowNum: i + 2, key: String(key) };
     for (var c = 0; c < cols.length; c++) {
-      rec[slugCol_(cols[c])] = formatCell_(row[c], tz);
+      rec[slugCol_(cols[c])] = cellValue_(row[c], shown[i][c]);
     }
     out.push(rec);
   }
   return out;
 }
 
-// IMPORTANT: dates in this sheet must be formatted using the SPREADSHEET's own
-// timezone (not the script project's default timezone), or every date reads back
-// one day off. Caught this during testing 2026-07-29 - closing/accepted dates
-// were showing a day early, which is exactly the kind of silent wrong-answer
-// bug that erodes trust in a live tracker.
-function formatCell_(v, tz) {
-  if (v instanceof Date) {
-    return Utilities.formatDate(v, tz, 'M/d/yyyy');
-  }
-  return v;
+// Dates come back as the cell's DISPLAYED text, straight from the sheet. An
+// earlier version reformatted the raw Date with a timezone, which was both
+// fragile (a bad timezone argument threw and took down the whole endpoint) and
+// wrong by a day whenever the script and spreadsheet timezones disagreed.
+// Reading what the cell already shows means there is no timezone math to get
+// wrong, and the app always matches what John and Lindsay see in the sheet.
+// Everything else (numbers, text) passes through as its real value so the
+// dashboard can still do math on prices.
+function cellValue_(raw, shown) {
+  if (raw instanceof Date) return shown;
+  return raw;
 }
 
 function slugCol_(name) {
@@ -156,7 +162,7 @@ function appendActiveFromOffer_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_ACTIVE, COLS_ACTIVE);
   var flags = [];
   if (it.missing && it.missing.length) flags.push('MISSING: ' + it.missing.join(', '));
-  flags.push('New offer submitted ' + isoDate_(ss.getSpreadsheetTimeZone()) + ', awaiting acceptance.');
+  flags.push('New offer submitted ' + isoDate_(tzOf_(ss)) + ', awaiting acceptance.');
   var row = [
     it.address || '', 'Buy', it.agent || '', it.price || '',
     '', // Accepted - blank until actually accepted
@@ -171,7 +177,7 @@ function appendListingFromSeller_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_LISTINGS, COLS_LISTINGS);
   var notes = [];
   if (it.missing && it.missing.length) notes.push('MISSING: ' + it.missing.join(', '));
-  notes.push('New lead ' + isoDate_(ss.getSpreadsheetTimeZone()) + '. Anticipated list date: ' + (it.listdate || 'TBD') + '.');
+  notes.push('New lead ' + isoDate_(tzOf_(ss)) + '. Anticipated list date: ' + (it.listdate || 'TBD') + '.');
   if (it.notes) notes.push(it.notes);
   var row = [
     it.address || '', it.agent || '', 'New Lead', '', '', '', '', '', '', '', '', '', '',
@@ -188,7 +194,7 @@ function appendBuyerLead_(ss, it) {
   if (it.notes) notes.push(it.notes);
   var row = [
     it.names || '', it.phone || '', it.email || '', it.preapproval || '',
-    it.pricerange || '', it.areas || '', it.agent || '', isoDate_(ss.getSpreadsheetTimeZone()), notes.join(' ')
+    it.pricerange || '', it.areas || '', it.agent || '', isoDate_(tzOf_(ss)), notes.join(' ')
   ];
   sheet.appendRow(row);
   return { tab: TAB_BUYERLEADS, row: sheet.getLastRow() };
@@ -205,6 +211,20 @@ function getOrCreateTab_(ss, name, cols) {
 }
 
 /* ---------------- helpers ---------------- */
+
+// Today's date, for stamping new intake rows. Writes still need a timezone, but
+// this can never throw: if the spreadsheet or script timezone comes back as
+// anything other than a usable string we fall back to Central, which is where
+// Integrity Homes operates.
+function tzOf_(ss) {
+  var tz;
+  try { tz = ss.getSpreadsheetTimeZone(); } catch (e) { tz = null; }
+  if (typeof tz !== 'string' || !tz) {
+    try { tz = Session.getScriptTimeZone(); } catch (e2) { tz = null; }
+  }
+  if (typeof tz !== 'string' || !tz) tz = 'America/Chicago';
+  return tz;
+}
 
 function isoDate_(tz) {
   var d = new Date();
