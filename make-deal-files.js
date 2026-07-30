@@ -180,8 +180,24 @@ function fileNameFor(g) {
   const type = g.active ? (g.active.side === 'Buy' ? 'Purchase' : 'Listing')
     : g.listing ? 'Listing' : 'Closed';
   const addr = String(r.address || '').split(',')[0];
-  const name = has(who) ? String(who).split(/[·&,(]/)[0].trim().split(/\s+/).pop() : '';
-  return (has(name) ? slug(name) + ' - ' : '') + slug(addr) + ' - ' + type + '.md';
+  return (has(who) ? slug(surname(who)) + ' - ' : '') + slug(addr) + ' - ' + type + '.md';
+}
+
+// The name a person would actually search by. Taking the last word of the whole
+// string handles "Lawrence & Susan Davies" -> Davies and "April & Eric Beck" ->
+// Beck, where taking the first segment would have given a first name. Entities
+// keep their own name instead, so "GTGH Holdings LLC" is not filed under "LLC".
+// Parentheticals are dropped because they hold the signer, not the owner:
+// "Northwave Investments LLC (John Henke)".
+function surname(s) {
+  const t = String(s || '').replace(/\([^)]*\)/g, ' ').split('·')[0].trim();
+  if (!t) return '';
+  const words = t.replace(/[^A-Za-z0-9 ]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  if (/\b(llc|inc|corp|corporation|company|holdings|trust|ltd|lp)\b/i.test(t)) {
+    return words.slice(0, 2).join(' ');
+  }
+  return words[words.length - 1];
 }
 
 function get(url) {
