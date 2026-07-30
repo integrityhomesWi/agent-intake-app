@@ -25,16 +25,18 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-4';
+var BUILD = 'sheets-5';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
 var TAB_LISTINGS = 'Listings';
 var TAB_BUYERLEADS = 'Buyer Leads';
+var TAB_CLOSED = 'Closed 2026';
 
 var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company'];
 var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes'];
 var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes'];
+var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status'];
 
 /* ---------------- entry points ---------------- */
 
@@ -76,15 +78,32 @@ function listDeals_() {
   out = out.concat(readTab_(ss, TAB_ACTIVE, COLS_ACTIVE, 'active'));
   out = out.concat(readTab_(ss, TAB_LISTINGS, COLS_LISTINGS, 'listing'));
   out = out.concat(readTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS, 'buyerlead'));
+  out = out.concat(readTab_(ss, TAB_CLOSED, COLS_CLOSED, 'closed'));
   return out;
+}
+
+// Not every tab starts with its header on row 1. "Closed 2026" has a goal
+// tracker block above the column headers, so find the header by looking for the
+// first column's name in the first 25 rows. Tabs whose header really is row 1
+// are unaffected.
+function headerRowOf_(sheet, firstCol) {
+  var probe = Math.min(sheet.getLastRow(), 25);
+  if (probe < 1) return 1;
+  var col = sheet.getRange(1, 1, probe, 1).getDisplayValues();
+  var want = String(firstCol).trim().toLowerCase();
+  for (var r = 0; r < col.length; r++) {
+    if (String(col[r][0]).trim().toLowerCase() === want) return r + 1;
+  }
+  return 1;
 }
 
 function readTab_(ss, tabName, cols, source) {
   var sheet = ss.getSheetByName(tabName);
   if (!sheet) return [];
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-  var range = sheet.getRange(2, 1, lastRow - 1, cols.length);
+  var hdr = headerRowOf_(sheet, cols[0]);
+  if (lastRow <= hdr) return [];
+  var range = sheet.getRange(hdr + 1, 1, lastRow - hdr, cols.length);
   var values = range.getValues();
   var shown = range.getDisplayValues();
   var out = [];
@@ -92,7 +111,7 @@ function readTab_(ss, tabName, cols, source) {
     var row = values[i];
     var key = row[0];
     if (!key) continue; // skip blank rows
-    var rec = { source: source, tab: tabName, rowNum: i + 2, key: String(key) };
+    var rec = { source: source, tab: tabName, rowNum: hdr + 1 + i, key: String(key) };
     for (var c = 0; c < cols.length; c++) {
       rec[slugCol_(cols[c])] = cellValue_(row[c], shown[i][c]);
     }
@@ -123,16 +142,23 @@ function slugCol_(name) {
 
 /* ---------------- writing: single-cell / row updates ---------------- */
 
+function colsFor_(tab) {
+  if (tab === TAB_ACTIVE) return COLS_ACTIVE;
+  if (tab === TAB_LISTINGS) return COLS_LISTINGS;
+  if (tab === TAB_CLOSED) return COLS_CLOSED;
+  return COLS_BUYERLEADS;
+}
+
 function saveField_(tab, key, updates) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName(tab);
   if (!sheet) return { ok: false, error: 'no such tab: ' + tab };
-  var cols = tab === TAB_ACTIVE ? COLS_ACTIVE : tab === TAB_LISTINGS ? COLS_LISTINGS : COLS_BUYERLEADS;
+  var cols = colsFor_(tab);
 
   var lastRow = sheet.getLastRow();
   var keyCol = 1;
   var rowNum = -1;
-  for (var r = 2; r <= lastRow; r++) {
+  for (var r = headerRowOf_(sheet, cols[0]) + 1; r <= lastRow; r++) {
     var v = sheet.getRange(r, keyCol).getValue();
     if (String(v).trim() === String(key).trim()) { rowNum = r; break; }
   }
