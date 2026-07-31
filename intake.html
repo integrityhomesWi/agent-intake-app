@@ -280,6 +280,133 @@ function makeRec(){
   return r;
 }
 
+/* ---------- speech output (read-back) ---------- */
+const SS = window.speechSynthesis;
+function speak(text){
+  if(!SS || !text) return;
+  try{
+    SS.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1; u.pitch=1; u.lang='en-US';
+    SS.speak(u);
+  }catch(_){}
+}
+// Speaks, then calls back when done. Falls back on a timeout in case onend
+// never fires (seen on some mobile browsers when the tab loses focus).
+function speakThen(text, cb){
+  if(!SS || !text){ cb&&cb(); return; }
+  try{
+    SS.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1; u.pitch=1; u.lang='en-US';
+    let fired=false;
+    const done=()=>{ if(fired) return; fired=true; cb&&cb(); };
+    u.onend=done; u.onerror=done;
+    SS.speak(u);
+    setTimeout(done, Math.max(4000, text.length*80));
+  }catch(_){ cb&&cb(); }
+}
+function summaryText(parsed){
+  const def=TYPES[curType];
+  const said=def.fields.filter(f=>f.key!=="notes" && parsed[f.key]).map(f=>f.lab+": "+parsed[f.key]);
+  return said.length ? "Here's what I caught. "+said.join(". ")+"." : "I didn't catch any details yet.";
+}
+
+/* ---------- follow-up conversation for missing required fields ----------
+   Free talk first (simple, doesn't hold Michele to a script). Only what's
+   still missing after that gets asked about, one field at a time, and she
+   can tap the mic anytime to bail into free talk instead. */
+let followUpQueue=[];
+let followUpActive=false;
+let followUpRec=null;
+
+const QUESTION_FOR={
+  names:"What's the name?", phone:"What's the best phone number?",
+  email:"What's their email?", address:"What's the property address?",
+  price:"What's the offer price?", earnest:"How much is the earnest money?",
+  closedate:"What's the target close date?", listdate:"When do you expect to list it?",
+  preapproval:"Are they pre-approved, pending with a lender, or not yet?",
+};
+function questionFor(f){ return QUESTION_FOR[f.key] || ("What's the "+f.lab.toLowerCase()+"?"); }
+
+function parseFieldAnswer(key, text){
+  text=text.trim();
+  if(/^(skip|not sure|i don'?t know|dont know|later|no idea|pass)\.?$/i.test(text)) return "";
+  if(key==="email"){ const m=text.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/); return m?m[0]:text; }
+  if(key==="phone"){ const m=text.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/); return m?m[0].trim():text; }
+  if(key==="price"||key==="earnest"){
+    const m=[...text.matchAll(/\$?\s?(\d{1,3}(?:,\d{3})+|\d{3,7})(?:\s?(k|thousand))?/gi)];
+    if(m.length){ let n=parseInt(m[0][1].replace(/,/g,""),10); if(m[0][2]) n*=1000; return "$"+n.toLocaleString(); }
+    return text;
+  }
+  if(key==="preapproval"){
+    if(/not pre|no pre|isn't pre|needs? (?:a )?lender|need.{0,10}pre-?approv|none/i.test(text)) return "Needs pre-approval / no lender yet";
+    if(/pending|working with|in process|with (?:a )?lender/i.test(text)) return "Pending with lender";
+    if(/pre-?approv|yes|approved/i.test(text)) return "Pre-approved";
+    return text;
+  }
+  if(key==="closedate"||key==="listdate"){
+    const m=text.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/i);
+    return m?m[0]:text;
+  }
+  return text;
+}
+
+function startFollowUp(missingKeys){
+  if(!SR || !missingKeys.length) return;
+  followUpQueue=missingKeys.slice();
+  followUpActive=true;
+  askNext();
+}
+function stopFollowUp(){
+  followUpActive=false;
+  followUpQueue=[];
+  if(followUpRec){ try{followUpRec.stop();}catch(_){} followUpRec=null; }
+}
+function askNext(){
+  if(!followUpActive) return;
+  if(!followUpQueue.length){
+    followUpActive=false;
+    speak("That's everything I need. Feel free to review and save.");
+    return;
+  }
+  const key=followUpQueue.shift();
+  const f=TYPES[curType].fields.find(x=>x.key===key);
+  if(!f){ askNext(); return; }
+  speakThen(questionFor(f), ()=>listenOnce(key));
+}
+function listenOnce(key){
+  if(!followUpActive || !SR){ return; }
+  const fLabel=(TYPES[curType].fields.find(x=>x.key===key)||{}).lab||"";
+  micBtn.classList.add('live'); micBtn.textContent="⏹";
+  micLabel.textContent="Listening for "+fLabel;
+  const r=new SR();
+  r.lang="en-US"; r.continuous=false; r.interimResults=false;
+  followUpRec=r;
+  let captured="";
+  r.onresult=(e)=>{ captured=e.results[0][0].transcript; };
+  r.onerror=()=>{};
+  r.onend=()=>{
+    micBtn.classList.remove('live'); micBtn.textContent="🎙️"; micLabel.textContent="Tap to talk";
+    followUpRec=null;
+    if(!followUpActive) return;
+    if(captured) applyFollowUpAnswer(key, captured); else askNext();
+  };
+  try{ r.start(); }catch(_){ askNext(); }
+}
+function applyFollowUpAnswer(key, raw){
+  const val=parseFieldAnswer(key, raw);
+  const inp=document.querySelector('#fields input[data-key="'+key+'"]');
+  if(inp && val){
+    inp.value=val;
+    const fld=inp.closest('.field');
+    fld.classList.remove('missing');
+    const mn=fld.querySelector('.missing-note'); if(mn) mn.remove();
+  }
+  updateFlagbar();
+  askNext();
+}
+
 /* ---------- UI wiring ---------- */
 document.querySelectorAll('.type').forEach(el=>{
   el.addEventListener('click',()=>{
@@ -295,7 +422,16 @@ document.querySelectorAll('.type').forEach(el=>{
 
 const micBtn=document.getElementById('mic');
 const micLabel=document.getElementById('micLabel');
-micBtn.addEventListener('click',()=>{ recognizing?stopRec():startRec(); });
+micBtn.addEventListener('click',()=>{
+  if(followUpActive){
+    stopFollowUp();
+    speak("Okay, go ahead.");
+    micBtn.classList.remove('live'); micBtn.textContent="🎙️";
+    micLabel.textContent="Tap to talk";
+    return;
+  }
+  recognizing?stopRec():startRec();
+});
 
 function startRec(){
   if(!SR){ typeInstead(); return; }
@@ -324,6 +460,7 @@ function enableParse(){
 }
 
 document.getElementById('clearBtn').addEventListener('click',()=>{
+  stopFollowUp();
   transcript=""; document.getElementById('manual').value="";
   showTranscript(""); enableParse();
 });
@@ -336,6 +473,7 @@ document.getElementById('typeInstead').addEventListener('click',typeInstead);
 document.getElementById('manual').addEventListener('input',enableParse);
 
 function resetForNewType(){
+  stopFollowUp();
   transcript=""; document.getElementById('manual').value=""; document.getElementById('manual').style.display='none';
   showTranscript(""); enableParse();
   document.getElementById('review').style.display='none';
@@ -423,6 +561,10 @@ function showReview(parsed){
   document.getElementById('hint').style.display='none';
   document.getElementById('review').style.display='block';
   document.getElementById('review').scrollIntoView({behavior:'smooth',block:'start'});
+  const mKeys=missingReqKeys();
+  const summary=summaryText(parsed) + (mKeys.length ? "" : " Nothing required is missing.");
+  if(mKeys.length && SR) speakThen(summary, ()=>startFollowUp(mKeys));
+  else speak(summary);
 }
 document.getElementById('parseBtn').addEventListener('click',()=>{
   const txt=getText();
@@ -461,15 +603,18 @@ function renderReview(parsed){
     box.appendChild(wrap);
   });
   updateFlagbar();
-  box.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
-    const fld=inp.closest('.field');
-    const def2=TYPES[curType].fields.find(x=>x.key===inp.dataset.key);
-    if(def2.req){
-      if(inp.value.trim()){ fld.classList.remove('missing'); const mn=fld.querySelector('.missing-note'); if(mn) mn.remove(); }
-      else if(!fld.classList.contains('missing')){ fld.classList.add('missing'); }
-    }
-    updateFlagbar();
-  }));
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('focus',()=>{ if(followUpActive) stopFollowUp(); });
+    inp.addEventListener('input',()=>{
+      const fld=inp.closest('.field');
+      const def2=TYPES[curType].fields.find(x=>x.key===inp.dataset.key);
+      if(def2.req){
+        if(inp.value.trim()){ fld.classList.remove('missing'); const mn=fld.querySelector('.missing-note'); if(mn) mn.remove(); }
+        else if(!fld.classList.contains('missing')){ fld.classList.add('missing'); }
+      }
+      updateFlagbar();
+    });
+  });
 }
 
 function collectFields(){
@@ -480,6 +625,10 @@ function collectFields(){
 function missingReq(){
   const vals=collectFields();
   return TYPES[curType].fields.filter(f=>f.req && !vals[f.key]).map(f=>f.lab);
+}
+function missingReqKeys(){
+  const vals=collectFields();
+  return TYPES[curType].fields.filter(f=>f.req && !vals[f.key]).map(f=>f.key);
 }
 function updateFlagbar(){
   const m=missingReq();
@@ -498,6 +647,7 @@ let _submitted=false;
 document.getElementById('submitBtn').addEventListener('click',()=>{
   if(_submitted) return;
   _submitted=true;
+  stopFollowUp();
   const vals=collectFields();
   const missing=missingReq();
   const file=buildFile(vals,missing);
@@ -511,6 +661,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
   window._lastFile=file;
   saveToDrive(missing, vals);
+  speak(missing.length ? "Saved, but flagged. Missing "+missing.join(", ")+"." : "Saved. Nothing missing.");
 });
 
 function saveToDrive(missing, vals){
@@ -537,7 +688,7 @@ function saveToDrive(missing, vals){
       note.textContent="Could not send. Use Copy file as backup.";
       note.style.color="var(--warn)";
     });
-  }catch(_){
+  }catch(_){ 
     note.textContent="Could not send. Use Copy file as backup.";
     note.style.color="var(--warn)";
   }
@@ -653,6 +804,7 @@ document.getElementById('copyBtn').addEventListener('click',()=>{
   });
 });
 document.getElementById('againBtn').addEventListener('click',()=>{
+  stopFollowUp();
   document.getElementById('done').style.display='none';
   document.querySelectorAll('.type').forEach(t=>t.classList.remove('on'));
   document.getElementById('stage').style.display='none';
