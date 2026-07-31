@@ -32,6 +32,33 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-07-31 · build `sheets-11` · added 27 columns from the transaction-detail brainstorm
+
+**Active Transactions**, appended after `Co-op Comp`:
+- `Offer Date`, `Financing Type`, `Home Sale Contingency`, `Possession Date`,
+  `Possession Notes`, `Co-op Agent Company`, `Co-op Agent Email`,
+  `Co-op Agent Phone`, `Earnest Money Holder`, `Home Inspector`, `HOA`
+
+**Listings**, appended after `Co-op Comp`:
+- `List Date`, `Expiration Date`, `Included Items`, `Excluded Items`,
+  `Condition Report Date`, `Year Built`, `Lead Paint Disclosure Status`,
+  `Photo Link`, `Virtual Tour (Branded)`, `Virtual Tour (Unbranded)`
+
+**Buyer Leads**, appended after `Notes`:
+- `Lender Name`, `Lender Company`, `Lender Phone`, `Lender Email`,
+  `Preapproval Expiration`, `Buyer Agency Signed Date`,
+  `Buyer Agency Start Date`, `Buyer Agency End Date`
+
+Why: John ran a voice brainstorm on the full deal lifecycle (buyer intake,
+listing, under-contract/closing) and cross-referenced it against the
+Transaction_Master_Checklist and TC SOP already in Drive. `Home Inspector` and
+`HOA` were not in the brainstorm doc but are grounded in the same SOP/checklist
+(preferred inspector vendors, title-review HOA check) and added on that basis.
+The "weekly email tracking" idea from the brainstorm was deliberately left out
+- that's an automation feature, not a column, and needs its own design pass.
+No front-end (Command Center) changes yet; these are backend-only until John
+decides which of them need to be visible/editable in the dashboard.
+
 ### 2026-07-30 · build `sheets-8` · added Commission and GCI to Closed 2026
 
 **Closed 2026**, appended after `Status`:

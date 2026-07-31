@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-10';
+var BUILD = 'sheets-11';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -45,9 +45,9 @@ var TAB_CLOSED = 'Closed 2026';
 // in the list IS the column position in the sheet, so inserting one in the
 // middle would silently shift every value after it into the wrong field.
 // Any change here must be recorded in SHEET-FORMAT-LOG.md.
-var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp'];
-var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp'];
-var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes'];
+var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp','Offer Date','Financing Type','Home Sale Contingency','Possession Date','Possession Notes','Co-op Agent Company','Co-op Agent Email','Co-op Agent Phone','Earnest Money Holder','Home Inspector','HOA'];
+var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp','List Date','Expiration Date','Included Items','Excluded Items','Condition Report Date','Year Built','Lead Paint Disclosure Status','Photo Link','Virtual Tour (Branded)','Virtual Tour (Unbranded)'];
+var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes','Lender Name','Lender Company','Lender Phone','Lender Email','Preapproval Expiration','Buyer Agency Signed Date','Buyer Agency Start Date','Buyer Agency End Date'];
 var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status','Commission','GCI'];
 
 /* ---------------- entry points ---------------- */
