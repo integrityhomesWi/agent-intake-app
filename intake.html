@@ -280,6 +280,25 @@ function makeRec(){
   return r;
 }
 
+/* ---------- speech output (read-back) ---------- */
+const SS = window.speechSynthesis;
+function speak(text){
+  if(!SS || !text) return;
+  try{
+    SS.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1; u.pitch=1; u.lang='en-US';
+    SS.speak(u);
+  }catch(_){}
+}
+function speakSummary(parsed, missing){
+  const def=TYPES[curType];
+  const said=def.fields.filter(f=>f.key!=="notes" && parsed[f.key]).map(f=>f.lab+": "+parsed[f.key]);
+  let text = said.length ? "Here's what I caught. "+said.join(". ")+"." : "I didn't catch any details yet.";
+  text += missing.length ? " Still missing: "+missing.join(", ")+"." : " Nothing required is missing.";
+  speak(text);
+}
+
 /* ---------- UI wiring ---------- */
 document.querySelectorAll('.type').forEach(el=>{
   el.addEventListener('click',()=>{
@@ -423,6 +442,7 @@ function showReview(parsed){
   document.getElementById('hint').style.display='none';
   document.getElementById('review').style.display='block';
   document.getElementById('review').scrollIntoView({behavior:'smooth',block:'start'});
+  speakSummary(parsed, missingReq());
 }
 document.getElementById('parseBtn').addEventListener('click',()=>{
   const txt=getText();
@@ -511,6 +531,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
   window._lastFile=file;
   saveToDrive(missing, vals);
+  speak(missing.length ? "Saved, but flagged. Missing "+missing.join(", ")+"." : "Saved. Nothing missing.");
 });
 
 function saveToDrive(missing, vals){
