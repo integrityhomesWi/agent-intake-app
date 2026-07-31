@@ -350,7 +350,7 @@ function questionFor(f){ return QUESTION_FOR[f.key] || ("What's the "+f.lab.toLo
 
 function parseFieldAnswer(key, text){
   text=text.trim();
-  if(/^(skip|not sure|i don'?t know|dont know|later|no idea|pass)\.?$/i.test(text)) return "";
+  if(/^(skip|not sure|i don'?t know|dont know|later|no idea|pass|i don'?t have (?:it|that|one|an?y)?|don'?t have (?:it|that|one|an?y)?|none|n\/?a|not applicable|not yet|no thanks?)\.?$/i.test(text)) return "";
   if(key==="email"){ const m=text.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/); return m?m[0]:text; }
   if(key==="phone"){ const m=text.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/); return m?m[0].trim():text; }
   if(key==="price"||key==="earnest"){

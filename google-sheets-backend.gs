@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-9';
+var BUILD = 'sheets-10';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -317,7 +317,8 @@ function converse_(data) {
     '- Merge new information with what is already known below; do not erase a known value unless the agent clearly corrected it.',
     '- If every required field is filled, set done=true and spokenLine should be one short warm confirmation sentence.',
     '- If required fields are still missing, set done=false, and spokenLine should be ONE short natural spoken question about a single missing required field - never a list of multiple questions.',
-    '- If the agent says something like "skip", "not sure", or "I don\'t know", leave that field blank and move on to a different missing field next turn.',
+    '- If the agent\'s answer is not an actual value for the field you asked about - e.g. "skip", "not sure", "I don\'t know", "I don\'t have it", "don\'t have that", "none", "no idea", or anything else that declines or defers rather than answering - do NOT put that phrase into the field. Leave it out of fields entirely (so it stays missing) and move on to a different missing field next turn.',
+    '- Never store a decline/non-answer phrase as a field\'s value under any circumstance, even if it is the only thing the agent said in response to that question.',
     '- Phone numbers, emails, dates, and dollar amounts should be recorded in a clean plain format (e.g. "$450,000", "608-669-4226").',
     '- spokenLine is read aloud by text-to-speech to the agent. Keep it brief and conversational, not written prose.',
     '',
