@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Integrity Homes</title>
+<style>
+  :root{
+    --navy:#0f2540; --navy2:#1b3a5f; --gold:#b8893a; --gold2:#cfa15a;
+    --cream:#f7f4ee; --ink:#14202e; --muted:#5f6b78; --line:#e2ddd2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--cream); color:var(--ink);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+  }
+  .wrap{max-width:420px; width:100%; padding:24px;}
+  .brand{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); font-weight:700; text-align:center;}
+  h1{margin:6px 0 32px; font-size:22px; text-align:center; color:var(--navy);}
+  .card{
+    display:block; background:#fff; border:1.5px solid var(--line); border-radius:16px;
+    padding:22px 20px; margin-bottom:14px; text-decoration:none; color:inherit;
+    transition:.12s;
+  }
+  .card:active{transform:scale(.98); border-color:var(--gold);}
+  .card .ic{font-size:28px;}
+  .card .nm{margin-top:8px; font-size:17px; font-weight:700; color:var(--navy);}
+  .card .ds{margin-top:3px; font-size:13px; color:var(--muted); line-height:1.4;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Integrity Homes</div>
+  <h1>Choose where you're going</h1>
+
+  <a class="card" href="intake.html">
+    <div class="ic">🎙️</div>
+    <div class="nm">Agent Intake</div>
+    <div class="ds">Pick a type, tap the mic, and just talk. For catching a new buyer, offer, or listing.</div>
+  </a>
+
+  <a class="card" href="command-center.html">
+    <div class="ic">📊</div>
+    <div class="nm">Command Center</div>
+    <div class="ds">See every deal live, track milestones, goals, and listings.</div>
+  </a>
+</div>
+</body>
+</html>
