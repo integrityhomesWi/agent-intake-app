@@ -182,6 +182,23 @@
   .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
   .livebar.err{display:block;background:var(--warnbg,#fbeae7);color:var(--red);border:1px solid #eecbc4}
   .livebar.ok{display:block;background:#e6f4ec;color:var(--green);border:1px solid #cfe8d8}
+  /* ---- agent (read-only) view: locks every editable control, adds a
+     voice/typed "request a change" box instead. Only active with ?agent=1
+     in the URL - John's normal link is completely unaffected. ---- */
+  body.agent-mode .ms,body.agent-mode .emc,body.agent-mode .titlesel,body.agent-mode .linp,
+  body.agent-mode .lsel,body.agent-mode .ginp,body.agent-mode .maInp,body.agent-mode .ebox,
+  body.agent-mode .addln,body.agent-mode .addref,body.agent-mode #laddbtn{
+    pointer-events:none!important;opacity:.85;cursor:default!important;
+  }
+  body.agent-mode .mtab[data-v="goals"]{display:none!important}
+  .reqbox{margin-top:8px;padding:12px;background:#fbf7ee;border:1px solid #ecd9ad;border-radius:8px}
+  .reqbox .reqrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .reqmic{width:34px;height:34px;flex:none;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:15px;cursor:pointer}
+  .reqmic.live{background:var(--red);animation:reqpulse 1.2s infinite}
+  @keyframes reqpulse{0%{box-shadow:0 0 0 0 rgba(192,57,43,.5)}70%{box-shadow:0 0 0 10px rgba(192,57,43,0)}100%{box-shadow:0 0 0 0 rgba(192,57,43,0)}}
+  .reqtxt{flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .reqsend{padding:8px 14px;border:none;border-radius:8px;background:var(--gold);color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+  .reqok{font-size:12px;color:var(--green);margin-top:6px;font-weight:600}
 </style>
 </head>
 <body>
@@ -290,6 +307,79 @@
    every listing, closing, and deal below comes from the sheet at page load. */
 const SHEET_ENDPOINT="https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
 const SHEET_URL="https://docs.google.com/spreadsheets/d/1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs/edit";
+
+// Agent (read-only) view: add ?agent=1 to the URL. Every editable control is
+// locked (see the body.agent-mode CSS rules), the Goals & Pipeline tab (John's
+// personal cap/commission/pipeline data) is hidden, and a "request a change"
+// voice/typed box is added instead so an agent can flag a need - a price
+// reduction, a closing date push, anything - without ever writing a cell
+// herself. The request lands as a plain tagged note in that row's flags/notes
+// column, same place missing-field flags already show up, so the office sees
+// it without opening anything new.
+const AGENT_MODE = new URLSearchParams(location.search).get('agent')==='1';
+if (AGENT_MODE){
+  document.body.classList.add('agent-mode');
+  const legends=document.querySelectorAll('.legend');
+  if(legends[0]) legends[0].innerHTML='<b>View only.</b> Tap a deal to see details. Need something changed - a price, a date, anything? Open the deal and use <b>Request a change</b> to tell the office, by voice or typed.';
+  if(legends[1]) legends[1].innerHTML='<b>View only.</b> Tap a listing to see details, then use <b>Request a change</b> to tell the office what needs updating.';
+}
+const ReqSR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let reqRec=null, reqListening=false;
+function reqStamp(){ return new Date().toLocaleDateString('en-US',{month:'numeric',day:'numeric'}); }
+function sendRequest(kind, i, rawText){
+  const text=(rawText||'').trim();
+  if(!text) return;
+  const tagged=`[Agent request ${reqStamp()}]: ${text}`;
+  if(kind==='deal'){
+    const d=deals[i]; if(!d) return;
+    d.flagNote = d.flagNote ? d.flagNote+' '+tagged : tagged;
+    d.flag = true;
+    saveCell(d.tab, d.key, {action_needed_flags: d.flagNote});
+    recompute(); render(); stats();
+    const c=document.getElementById('deal-'+i);
+    if(c){ c.classList.add('open'); c.scrollIntoView({behavior:'smooth',block:'center'}); }
+  } else {
+    const l=LST[i]; if(!l) return;
+    l.notes = l.notes ? l.notes+' '+tagged : tagged;
+    saveCell(l.tab, l.key, {notes: l.notes});
+    renderListings();
+    const lc=document.querySelectorAll('.ldeal')[i];
+    if(lc) lc.classList.add('open');
+  }
+  const okEl=document.querySelector(`.reqok[data-kind="${kind}"][data-i="${i}"]`);
+  if(okEl) okEl.textContent = 'Sent: "'+text+'"';
+}
+function startReqMic(kind, i, btn){
+  if(!ReqSR){ alert('Voice input is not available in this browser. Type the request instead.'); return; }
+  if(reqListening){ try{ reqRec.stop(); }catch(e){} return; }
+  reqRec = new ReqSR();
+  reqRec.lang='en-US'; reqRec.continuous=false; reqRec.interimResults=false;
+  reqListening=true; btn.classList.add('live');
+  reqRec.onresult=e=>{
+    const said=e.results[0][0].transcript;
+    const input=document.querySelector(`.reqtxt[data-kind="${kind}"][data-i="${i}"]`);
+    if(input) input.value=said;
+    sendRequest(kind, i, said);
+  };
+  reqRec.onerror=()=>{ reqListening=false; btn.classList.remove('live'); };
+  reqRec.onend=()=>{ reqListening=false; btn.classList.remove('live'); };
+  reqRec.start();
+}
+function wireRequestBoxes(){
+  document.querySelectorAll('.reqmic').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();startReqMic(b.dataset.kind,+b.dataset.i,b);}));
+  document.querySelectorAll('.reqsend').forEach(b=>b.addEventListener('click',e=>{
+    e.stopPropagation();
+    const input=document.querySelector(`.reqtxt[data-kind="${b.dataset.kind}"][data-i="${b.dataset.i}"]`);
+    sendRequest(b.dataset.kind, +b.dataset.i, input?input.value:'');
+    if(input) input.value='';
+  }));
+  document.querySelectorAll('.reqtxt').forEach(inp=>{
+    inp.addEventListener('click',e=>e.stopPropagation());
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ e.stopPropagation(); sendRequest(inp.dataset.kind, +inp.dataset.i, inp.value); inp.value=''; }
+    });
+  });
+}
 
 let deals=[];                 // Active Transactions + Closed 2026
 let LST=[];                   // Listings
@@ -498,7 +588,7 @@ function stats(){
  document.getElementById('alerts').innerHTML=ah;
 }
 
-function detail(d){
+function detail(d,i){
  const dz=v=>(v===0||v)?String(v):null;
  const fin=[["Sale price",d.price?m$(d.price):null],["Earnest money",d.em||null],["Well &amp; septic",d.wellSeptic||null],["Health",d.health||null],["Days to close",dz(d.daysOut)],["Owner / agent",d.owner],["Lead source",d.lead||null],["Status",d.status]].filter(r=>r[1]);
  const finH=fin.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
@@ -509,6 +599,15 @@ function detail(d){
  const cH=contact.length?`<div class="block"><h4>Contact</h4>${contact.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}</div>`:'';
  const noteH=d.notes?`<div class="block full"><h4>Notes</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.notes}</div></div>`:'';
  const flagH=d.flagNote?`<div class="block full"><h4>Action needed</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.flagNote}</div></div>`:'';
+ const reqH=AGENT_MODE?`<div class="block full reqbox">
+   <h4 style="color:var(--navy)">Request a change</h4>
+   <div class="reqrow">
+     <button class="reqmic" data-kind="deal" data-i="${i}" title="Tap and say your request">🎤</button>
+     <input type="text" class="reqtxt" data-kind="deal" data-i="${i}" placeholder="e.g. I need a price reduction to $400,000">
+     <button class="reqsend" data-kind="deal" data-i="${i}">Send</button>
+   </div>
+   <div class="reqok sub2" data-kind="deal" data-i="${i}"></div>
+ </div>`:'';
  return `<div class="grid">
    <div class="block"><h4>Financials</h4>${finH}</div>
    <div class="block"><h4>Timeline</h4>${tlH||'<div class="sub2">No dates yet</div>'}</div>
@@ -518,6 +617,7 @@ function detail(d){
    ${chH}
    ${noteH}
    <div class="block full"><h4>Where this lives</h4><div class="sub2">${d._file||''} of the IH Live Transaction Tracker. Edits here save straight back into that row.</div></div>
+   ${reqH}
  </div>`;
 }
 
@@ -550,9 +650,10 @@ function render(){
       <div class="c">${closeChip(d.close)}</div>
       <div class="caret opener" data-i="${i}">▶</div>
     </div>
-    <div class="dbody">${detail(d)}</div>
+    <div class="dbody">${detail(d,i)}</div>
   </div>`;
  }).join('') || '<p class="sub2" style="padding:16px">No deals to show. New intakes will appear here once they are saved.</p>';
+ if(AGENT_MODE) wireRequestBoxes();
  // milestone cycle: date/blank -> done -> expired -> na -> ''
  document.querySelectorAll('.ms').forEach(c=>c.addEventListener('click',e=>{
    e.stopPropagation();
@@ -803,9 +904,19 @@ function renderListings(){
         <div class="lkv"><span>Agent</span><input class="linp" data-li="${i}" data-f="agent" value="${l.agent||''}"></div>
         <div class="lkv full"><span>Notes</span><input class="linp" data-li="${i}" data-f="notes" value="${(l.notes||'').replace(/"/g,'&quot;')}"></div>
         <div class="lkv"><span>Row</span><span class="sub2">${l.tab} · row ${l.rowNum}</span></div>
+        ${AGENT_MODE?`<div class="lkv full reqbox">
+          <span>Request a change</span>
+          <div class="reqrow" style="margin-top:6px">
+            <button class="reqmic" data-kind="listing" data-i="${i}" title="Tap and say your request">🎤</button>
+            <input type="text" class="reqtxt" data-kind="listing" data-i="${i}" placeholder="e.g. I need a price reduction to $400,000">
+            <button class="reqsend" data-kind="listing" data-i="${i}">Send</button>
+          </div>
+          <div class="reqok sub2" data-kind="listing" data-i="${i}"></div>
+        </div>`:''}
       </div></div>
     </div>`;
   }).join('') || '<p class="sub2">No listings yet. Click "+ Add listing".</p>';
+  if(AGENT_MODE) wireRequestBoxes();
   document.querySelectorAll('#llist .lopen').forEach(o=>o.addEventListener('click',e=>{e.stopPropagation();o.closest('.ldeal').classList.toggle('open');}));
   document.querySelectorAll('#llist .lsel, #llist .linp').forEach(el=>{
     el.addEventListener('click',e=>e.stopPropagation());
