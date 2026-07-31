@@ -32,6 +32,17 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-07-30 · build `sheets-8` · added Commission and GCI to Closed 2026
+
+**Closed 2026**, appended after `Status`:
+- `Commission` (column H)
+- `GCI` (column I)
+
+Why: the original column spec (2026-07-30) asked for these on all three
+money-bearing tabs, but only Listings and Active Transactions got done in
+`sheets-7`. This closes that gap. Created automatically by `ensureHeaders_`
+the first time anything reads or writes Closed 2026 after this deploy.
+
 ### 2026-07-30 · build `sheets-7` · added Commission and Co-op Comp
 
 **Active Transactions**, appended after `Title Company`:

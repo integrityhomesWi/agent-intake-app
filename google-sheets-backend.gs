@@ -25,7 +25,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-7';
+var BUILD = 'sheets-8';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -40,7 +40,7 @@ var TAB_CLOSED = 'Closed 2026';
 var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp'];
 var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp'];
 var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes'];
-var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status'];
+var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status','Commission','GCI'];
 
 /* ---------------- entry points ---------------- */
 
