@@ -18,6 +18,14 @@
  *                                          Intake app: Buyer-Offer -> Active
  *                                          Transactions, Seller -> Listings,
  *                                          Buyer -> Buyer Leads
+ * doPost {action:'converse', ...}      -> one turn of the guided voice
+ *                                          follow-up conversation in the
+ *                                          Agent Intake app. Calls Claude
+ *                                          server-side using ANTHROPIC_API_KEY
+ *                                          from this project's Script
+ *                                          Properties (Project Settings >
+ *                                          Script Properties) - the key never
+ *                                          lives in the app itself.
  *
  * DEPLOY / REDEPLOY (keep the SAME url once first deployed):
  *   Deploy > Manage deployments > (pencil) edit > Version: New version > Deploy.
@@ -25,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-8';
+var BUILD = 'sheets-9';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -66,6 +74,10 @@ function doPost(e) {
     if (data.action === 'intake' && data.intake) {
       var out = routeIntake_(data.intake);
       return json_({ ok: true, tab: out.tab, row: out.row });
+    }
+
+    if (data.action === 'converse') {
+      return json_(converse_(data));
     }
 
     return json_({ ok: false, error: 'nothing to do' });
@@ -271,6 +283,97 @@ function getOrCreateTab_(ss, name, cols) {
   sheet.getRange(1, 1, 1, cols.length).setFontWeight('bold');
   sheet.setFrozenRows(1);
   return sheet;
+}
+
+/* ---------------- voice conversation (Claude) ---------------- */
+// Powers the guided follow-up conversation in the Agent Intake app: the app
+// sends what the agent just said plus what's known so far, Claude extracts
+// field values and decides the next natural spoken question. The API key
+// lives in this project's Script Properties (Project Settings > Script
+// Properties > ANTHROPIC_API_KEY) - never in the app itself.
+function converse_(data) {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!apiKey) return { ok: false, error: 'no ANTHROPIC_API_KEY set in Script Properties' };
+
+  var fieldDefs = data.fieldDefs || [];
+  var know = data.know || {};
+  var said = data.saidJustNow || '';
+
+  var reqLines = fieldDefs.filter(function (f) { return f.req; })
+    .map(function (f) { return '- ' + f.key + ': ' + f.lab; }).join('\n');
+  var optLines = fieldDefs.filter(function (f) { return !f.req; })
+    .map(function (f) { return '- ' + f.key + ': ' + f.lab; }).join('\n');
+
+  var system = [
+    'You are the voice assistant inside the Integrity Homes real estate agent intake app.',
+    'An agent is speaking naturally to log a new ' + (data.typeLabel || data.type) + '.',
+    'Required fields (must be filled before this intake is complete):',
+    reqLines || '(none)',
+    'Optional fields:',
+    optLines || '(none)',
+    '',
+    'Rules:',
+    '- Never invent information. Only fill a field if the agent actually said something for it.',
+    '- Merge new information with what is already known below; do not erase a known value unless the agent clearly corrected it.',
+    '- If every required field is filled, set done=true and spokenLine should be one short warm confirmation sentence.',
+    '- If required fields are still missing, set done=false, and spokenLine should be ONE short natural spoken question about a single missing required field - never a list of multiple questions.',
+    '- If the agent says something like "skip", "not sure", or "I don\'t know", leave that field blank and move on to a different missing field next turn.',
+    '- Phone numbers, emails, dates, and dollar amounts should be recorded in a clean plain format (e.g. "$450,000", "608-669-4226").',
+    '- spokenLine is read aloud by text-to-speech to the agent. Keep it brief and conversational, not written prose.',
+    '',
+    'Known so far (JSON): ' + JSON.stringify(know)
+  ].join('\n');
+
+  var payload = {
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    system: system,
+    messages: [{
+      role: 'user',
+      content: said || '(The agent just started this intake and has not said anything yet. Ask an opening question about the first missing required field.)'
+    }],
+    tools: [{
+      name: 'update_intake',
+      description: 'Record extracted field values and the next thing to say to the agent.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          fields: { type: 'object', description: 'All known field values as key:value pairs, merging new info from this turn with what was already known. Only include keys that have a real value.' },
+          done: { type: 'boolean', description: 'True only if every required field now has a value.' },
+          spokenLine: { type: 'string', description: 'One short sentence to speak next: a natural follow-up question, or a closing confirmation if done.' }
+        },
+        required: ['fields', 'done', 'spokenLine']
+      }
+    }],
+    tool_choice: { type: 'tool', name: 'update_intake' }
+  };
+
+  var resp;
+  try {
+    resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+  } catch (err) {
+    return { ok: false, error: 'request failed: ' + String(err) };
+  }
+
+  var code = resp.getResponseCode();
+  var body;
+  try { body = JSON.parse(resp.getContentText()); } catch (e2) { body = null; }
+  if (code !== 200 || !body) {
+    var msg = (body && body.error && body.error.message) || resp.getContentText().slice(0, 300);
+    return { ok: false, error: 'Claude API error ' + code + ': ' + msg };
+  }
+
+  var toolUse = (body.content || []).filter(function (c) { return c.type === 'tool_use'; })[0];
+  if (!toolUse) return { ok: false, error: 'no structured response from Claude' };
+
+  var out = toolUse.input || {};
+  return { ok: true, fields: out.fields || {}, done: !!out.done, spokenLine: out.spokenLine || '' };
 }
 
 /* ---------------- helpers ---------------- */
