@@ -518,6 +518,943 @@ document.querySelectorAll('.type').forEach(el=>{
     document.getElementById('stage').style.display='block';
     resetForNewType();
     if(!SR){ document.getElementById('nomic').style.display='block'; typeInstead(); }
+    document.getElementById('stage').scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+});
+
+const micBtn=document.getElementById('mic');
+const micLabel=document.getElementById('micLabel');
+micBtn.addEventListener('click',()=>{
+  if(claudeConvoActive || followUpActive){
+    stopClaudeConvo();
+    stopFollowUp();
+    speak("Okay, go ahead.");
+    micBtn.classList.remove('live'); micBtn.textContent="🎙️";
+    micLabel.textContent="Tap to talk";
+    return;
+  }
+  recognizing?finishRec():startRec();
+});
+
+function startRec(){
+  if(!SR){ typeInstead(); return; }
+  rec = makeRec();
+  if(!rec) return;
+  recognizing=true;
+  try{ rec.start(); }catch(_){}
+  micBtn.classList.add('live'); micBtn.textContent="⏹";
+  micLabel.textContent="Listening… (or tap when done)";
+}
+// Cleanup stop - used when resetting/leaving a turn, never when she's just
+// pausing mid-sentence. Sets recognizing=false BEFORE stopping the
+// recognizer so its onend handler knows not to auto-advance.
+function stopRec(){
+  recognizing=false;
+  if(rec){ try{rec.stop();}catch(_){} }
+  micBtn.classList.remove('live'); micBtn.textContent="🎙️";
+  micLabel.textContent = "Tap to talk";
+}
+// She tapped the mic to end this turn early. Treated exactly like a natural
+// pause (recognizing stays true going into onend) so it advances the same way.
+function finishRec(){
+  if(rec){ try{rec.stop();}catch(_){} }
+}
+
+function showTranscript(txt){
+  const el=document.getElementById('transcript');
+  if(txt){ el.textContent=txt; el.classList.remove('empty'); }
+  else{ el.textContent="Your words will show up here…"; el.classList.add('empty'); }
+}
+function enableParse(){
+  const has = transcript.trim().length>0 || document.getElementById('manual').value.trim().length>0;
+  document.getElementById('parseBtn').disabled = !has;
+}
+
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  stopFollowUp();
+  stopClaudeConvo();
+  transcript=""; document.getElementById('manual').value="";
+  showTranscript(""); enableParse();
+});
+function typeInstead(){
+  const m=document.getElementById('manual');
+  m.style.display = m.style.display==='none' ? 'block':'none';
+  if(m.style.display==='block') m.focus();
+}
+document.getElementById('typeInstead').addEventListener('click',typeInstead);
+document.getElementById('manual').addEventListener('input',enableParse);
+
+function resetForNewType(){
+  stopFollowUp();
+  stopClaudeConvo();
+  claudeAvailable=true;
+  transcript=""; document.getElementById('manual').value=""; document.getElementById('manual').style.display='none';
+  showTranscript(""); enableParse();
+  document.getElementById('review').style.display='none';
+  document.getElementById('done').style.display='none';
+  document.getElementById('stage').style.display='block';
+  document.getElementById('hint').style.display='block';
+  stopRec();
+}
+
+/* ---------- the parser ---------- */
+function getText(){
+  const m=document.getElementById('manual').value.trim();
+  return (transcript.trim()+" "+m).trim();
+}
+function parse(txt){
+  const out={};
+  const t=" "+txt.replace(/\s+/g," ")+" ";
+
+  // email
+  const em=txt.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g);
+  if(em) out.email=em.join(" / ");
+
+  // phone
+  const ph=txt.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/g);
+  if(ph) out.phone=ph[0].trim();
+
+  // money -> offer price / earnest
+  const money=[...txt.matchAll(/\$?\s?(\d{1,3}(?:,\d{3})+|\d{4,7})(?:\s?(k|thousand))?/gi)]
+    .map(m=>{
+      let n=parseInt(m[1].replace(/,/g,""),10);
+      if(m[2]) n = (/k|thousand/i.test(m[2])? n*1000 : n);
+      return n;
+    }).filter(n=>n>=1000);
+  // earnest keyword
+  const eMatch=txt.match(/earnest(?:\s+money)?(?:\s+of)?\s*\$?\s?([\d,]+(?:\s?k)?)/i);
+  if(eMatch){ let n=eMatch[1].replace(/,/g,""); if(/k/i.test(n)) n=parseInt(n)*1000; out.earnest="$"+Number(parseInt(n)).toLocaleString(); }
+  // offer/list price keyword
+  const pMatch=txt.match(/(?:offer(?:ing)?|price|list(?:ing)?|at)\s*(?:of|for|is|at)?\s*\$?\s?([\d,]+(?:\s?k)?)/i);
+  if(pMatch){ let n=pMatch[1].replace(/,/g,""); if(/k/i.test(n)) n=parseInt(n)*1000; const v="$"+Number(parseInt(n)).toLocaleString(); if(curType==="offer") out.price=v; }
+  if(curType==="offer" && !out.price && money.length){ out.price="$"+money.sort((a,b)=>b-a)[0].toLocaleString(); }
+
+  // address (number + street words, optional city)
+  const addr=txt.match(/\b\d{1,6}\s+(?:[NSEW]\.?\s+)?[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\s+(?:St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Ln|Lane|Ct|Court|Blvd|Way|Cir|Circle|Pl|Place|Ter|Trail|Trl|Pkwy|Hwy)\b\.?(?:,?\s+[A-Z][A-Za-z]+)?/);
+  if(addr) out.address=addr[0].replace(/\s+/g," ").trim();
+
+  // pre-approval
+  if(/pre-?approv/i.test(txt)){
+    if(/not pre|no pre|isn't pre|needs? (?:a )?lender|need.{0,10}pre-?approv|none/i.test(txt)) out.preapproval="Needs pre-approval / no lender yet";
+    else if(/pending|working with|in process|with (?:a )?lender/i.test(txt)) out.preapproval="Pending with lender";
+    else out.preapproval="Pre-approved";
+  } else if(/needs? (?:a )?lender|no lender/i.test(txt)) out.preapproval="Needs lender";
+
+  // list / close dates
+  const dateRx=/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/gi;
+  const dates=txt.match(dateRx);
+  if(dates){
+    if(curType==="seller"){ if(/list/i.test(txt)) out.listdate=dates[0]; else out.listdate=dates[0]; }
+    if(curType==="offer"){ if(/clos/i.test(txt)) out.closedate=dates.find(d=>true)||dates[0]; else out.closedate=dates[0]; }
+  }
+  // relative timing note
+  if(/next week|this week|next month|few days|couple days|tomorrow/i.test(txt)){
+    const m=txt.match(/(next week|this week|next month|few days|couple days|tomorrow)/i);
+    out._timing=m[1];
+  }
+
+  // names — strip out matched stuff, look for "buyer/seller is X" or capitalized name near start
+  let nameGuess="";
+  const nm=txt.match(/(?:buyer|seller|client|it'?s|name is|talked to|met with|picked up|got|working with)\s+(?:is\s+)?([A-Z][a-z]+(?:\s+(?:and|&)\s+[A-Z][a-z]+)?(?:\s+[A-Z][a-z]+){0,2})/);
+  if(nm) nameGuess=nm[1].trim();
+  if(!nameGuess){
+    const caps=txt.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/);
+    if(caps) nameGuess=caps[0];
+  }
+  if(nameGuess) out.names=nameGuess;
+
+  // notes = leftover context
+  out._raw=txt;
+  return out;
+}
+
+/* ---------- review render ---------- */
+// Fallback path only - used when Claude is unavailable. showReview(text) below
+// is the normal entry point now.
+function legacyShowReview(parsed){
+  renderReview(parsed);
+  document.getElementById('hint').style.display='none';
+  document.getElementById('review').style.display='block';
+  document.getElementById('review').scrollIntoView({behavior:'smooth',block:'start'});
+  const mKeys=missingReqKeys();
+  const summary=summaryText(parsed) + (mKeys.length ? "" : " Nothing required is missing.");
+  if(mKeys.length && SR) speakThen(summary, ()=>startFollowUp(mKeys));
+  else speak(summary);
+}
+function showReview(txt){
+  runConversation(txt||"");
+}
+document.getElementById('parseBtn').addEventListener('click',()=>{
+  const txt=getText();
+  if(!txt) return;
+  showReview(txt);
+});
+document.getElementById('fillByHand').addEventListener('click',()=>{
+  // Jump straight to the blank fields. If she already said or typed something,
+  // it's passed along so nothing is thrown away; otherwise this opens an empty
+  // form and Claude (or the local fallback) asks the first missing question.
+  showReview(getText());
+});
+
+function renderReview(parsed){
+  const def=TYPES[curType];
+  const caughtSomething = def.fields.some(f=>parsed[f.key]);
+  document.getElementById('reviewTitle').textContent =
+    (caughtSomething ? "Check what I caught — " : "Fill in the details — ") + def.label;
+  const box=document.getElementById('fields'); box.innerHTML="";
+  def.fields.forEach(f=>{
+    let val = parsed[f.key]||"";
+    if(f.key==="notes"){
+      let n = parsed.notes||"";
+      if(parsed._timing) n=("Timeline: "+parsed._timing+(n?". "+n:"")).trim();
+      val=n;
+    }
+    const missing = f.req && !val;
+    const wrap=document.createElement('div');
+    wrap.className="field"+(missing?" missing":"");
+    wrap.innerHTML=
+      '<div class="lab">'+f.lab+
+        (f.req?'<span class="req">REQUIRED</span>':'<span class="opt">optional</span>')+
+      '</div>'+
+      '<input data-key="'+f.key+'" value="'+val.replace(/"/g,'&quot;')+'" placeholder="'+(f.ph||(missing?'Missing — tap to add':'—'))+'">'+
+      (missing?'<div class="missing-note">You didn\'t mention this — add it now if you have it</div>':'');
+    box.appendChild(wrap);
+  });
+  updateFlagbar();
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('focus',()=>{ if(followUpActive) stopFollowUp(); if(claudeConvoActive) stopClaudeConvo(); });
+    inp.addEventListener('input',()=>{
+      const fld=inp.closest('.field');
+      const def2=TYPES[curType].fields.find(x=>x.key===inp.dataset.key);
+      if(def2.req){
+        if(inp.value.trim()){ fld.classList.remove('missing'); const mn=fld.querySelector('.missing-note'); if(mn) mn.remove(); }
+        else if(!fld.classList.contains('missing')){ fld.classList.add('missing'); }
+      }
+      updateFlagbar();
+    });
+  });
+}
+
+function collectFields(){
+  const vals={};
+  document.querySelectorAll('#fields input').forEach(i=>vals[i.dataset.key]=i.value.trim());
+  return vals;
+}
+function missingReq(){
+  const vals=collectFields();
+  return TYPES[curType].fields.filter(f=>f.req && !vals[f.key]).map(f=>f.lab);
+}
+function missingReqKeys(){
+  const vals=collectFields();
+  return TYPES[curType].fields.filter(f=>f.req && !vals[f.key]).map(f=>f.key);
+}
+function updateFlagbar(){
+  const m=missingReq();
+  const fb=document.getElementById('flagbar');
+  const btn=document.getElementById('submitBtn');
+  if(m.length){ fb.textContent="⚠ Will save flagged — still missing: "+m.join(", "); btn.textContent="Save anyway (flagged)"; }
+  else{ fb.textContent="✓ All required info captured"; fb.style.color="var(--ok)"; btn.textContent="Save intake"; }
+  if(m.length) fb.style.color="var(--warn)";
+}
+
+/* ---------- build the file ---------- */
+// One submit per intake. The send is fire-and-forget, so the app cannot tell a
+// success from a failure, and every tap that gets through adds another row. Two
+// taps used to mean the office got the same deal twice.
+let _submitted=false;
+document.getElementById('submitBtn').addEventListener('click',()=>{
+  if(_submitted) return;
+  _submitted=true;
+  stopFollowUp();
+  stopClaudeConvo();
+  const vals=collectFields();
+  const missing=missingReq();
+  const file=buildFile(vals,missing);
+  document.getElementById('filebox').textContent=file.body;
+  document.getElementById('doneTitle').textContent = missing.length? "Saved — with flags" : "Intake saved";
+  document.getElementById('doneSub').textContent = missing.length
+    ? ("Backend will see it's missing: "+missing.join(", "))
+    : "Nothing missing. Ready for the back office.";
+  document.getElementById('review').style.display='none';
+  document.getElementById('done').style.display='block';
+  document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
+  window._lastFile=file;
+  saveToDrive(missing, vals);
+  speak(missing.length ? "Saved, but flagged. Missing "+missing.join(", ")+"." : "Saved. Nothing missing.");
+});
+
+function saveToDrive(missing, vals){
+  const note=document.getElementById('driveNote');
+  if(!SHEET_ENDPOINT){
+    note.textContent="Not connected yet. Use Copy file for now.";
+    note.style.color="var(--muted)";
+    return;
+  }
+  note.textContent="Sending to the office…";
+  note.style.color="var(--muted)";
+  // The backend decides which tab this belongs on and adds the row.
+  const intake=Object.assign({type:curType, missing:missing}, vals);
+  try{
+    fetch(SHEET_ENDPOINT,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({ action:"intake", intake:intake })
+    }).then(()=>{
+      note.textContent="✓ Sent to the office";
+      note.style.color="var(--ok)";
+    }).catch(()=>{
+      note.textContent="Could not send. Use Copy file as backup.";
+      note.style.color="var(--warn)";
+    });
+  }catch(_){
+    note.textContent="Could not send. Use Copy file as backup.";
+    note.style.color="var(--warn)";
+  }
+}
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function slug(s){ return (s||"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40); }
+
+function buildFile(v,missing){
+  const def=TYPES[curType];
+  const M="*** MISSING — required ***";
+  let name, body;
+  const flag=(key)=> v[key] ? v[key] : M;
+
+  if(curType==="buyer"){
+    name="INTAKE-Buyer-"+(slug(v.names.split(/\s+/).pop())||"Unknown")+".md";
+    body=
+`# Buyer Intake — ${v.names||"Unknown"}
+
+Type: Buyer
+Status: ${missing.length?"New — INCOMPLETE, needs required info":"New — complete"}
+Date received: ${todayISO()}
+Agent: (agent)
+
+## Required
+Client Name(s): ${flag("names")}
+Best Phone: ${flag("phone")}
+Email: ${flag("email")}
+Pre-approval: ${flag("preapproval")}
+
+## Helpful if known
+Price range: ${v.pricerange||""}
+Areas / must-haves: ${v.areas||""}
+
+## Anything we should know
+${v.notes||"-"}
+
+---
+Last updated: ${todayISO()}`;
+  }
+  else if(curType==="offer"){
+    name="INTAKE-Offer-"+(slug(v.names.split(/\s+/).pop())||"Unknown")+"-"+(slug(v.address)||"addr")+".md";
+    body=
+`# Buyer-Offer Intake — ${v.names||"Unknown"}
+
+Type: Buyer-Offer (writing on a property)
+Status: ${missing.length?"New — INCOMPLETE, needs required info":"New — ready for Karl to draft"}
+Date received: ${todayISO()}
+Agent: (agent)
+
+## Required
+Buyer Name(s): ${flag("names")}
+Best Phone: ${flag("phone")}
+Email: ${flag("email")}
+Property Address: ${flag("address")}
+Offer Price: ${flag("price")}
+Pre-approval: ${flag("preapproval")}
+Close Date: ${flag("closedate")}
+Earnest Money: ${flag("earnest")}
+
+## Anything we should know
+${v.notes||"-"}
+
+## Fires
+- Karl: draft offer once required fields complete
+- John: compliance review before anything goes out
+
+---
+Last updated: ${todayISO()}`;
+  }
+  else{
+    name="INTAKE-Listing-"+(slug(v.address)||"addr")+".md";
+    body=
+`# Listing Intake — ${v.address||"Unknown address"}
+
+Type: Seller / Listing
+Status: ${missing.length?"New — INCOMPLETE, needs required info":"New — complete"}
+Date received: ${todayISO()}
+Agent: (agent)
+
+## Required
+Property Address: ${flag("address")}
+Seller Name(s): ${flag("names")}
+Best Phone: ${flag("phone")}
+Email: ${flag("email")}
+Anticipated List Date: ${flag("listdate")}
+
+## Fires immediately off ADDRESS only
+- Notify title company to run title search
+- Karl to-do: pull assessor / property-tax record
+
+## Waits for signed listing agreement
+- Compliance review (John), Rezen input, home warranty
+- MLS build, disclosures, photos (back-scheduled off live date)
+- Sign install: no sooner than list date
+
+## Anything we should know
+${v.notes||"-"}
+
+---
+Last updated: ${todayISO()}`;
+  }
+  return {name,body};
+}
+
+/* ---------- done actions ---------- */
+document.getElementById('copyBtn').addEventListener('click',()=>{
+  const f=window._lastFile; if(!f) return;
+  const payload=f.name+"\n\n"+f.body;
+  navigator.clipboard.writeText(payload).then(()=>{
+    const b=document.getElementById('copyBtn'); b.textContent="Copied ✓";
+    setTimeout(()=>b.textContent="Copy file",1600);
+  });
+});
+document.getElementById('againBtn').addEventListener('click',()=>{
+  stopFollowUp();
+  stopClaudeConvo();
+  claudeAvailable=true;
+  document.getElementById('done').style.display='none';
+  document.querySelectorAll('.type').forEach(t=>t.classList.remove('on'));
+  document.getElementById('stage').style.display='none';
+  curType=null; transcript=""; _submitted=false;
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Integrity Homes — Agent Intake</title>
+<style>
+  :root{
+    --navy:#0f2540; --navy2:#1b3a5f; --gold:#b8893a; --gold2:#cfa15a;
+    --cream:#f7f4ee; --ink:#14202e; --muted:#5f6b78; --line:#e2ddd2;
+    --ok:#1d7a54; --warn:#b23b2e; --warnbg:#fbeae7; --card:#ffffff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--cream); color:var(--ink);
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px; margin:0 auto; padding:0 18px 140px;}
+  header{
+    background:var(--navy); color:#fff; padding:18px 18px 16px;
+    text-align:center; position:sticky; top:0; z-index:50;
+  }
+  header .brand{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold2); font-weight:600;}
+  header h1{margin:4px 0 0; font-size:19px; font-weight:600;}
+  header .sub{margin:3px 0 0; font-size:12.5px; color:#b9c4d1;}
+  header .home{
+    position:absolute; left:14px; top:16px; font-size:13px; color:var(--gold2);
+    text-decoration:none; font-weight:600;
+  }
+
+  .types{display:flex; gap:8px; margin:18px 0 6px;}
+  .type{
+    flex:1; background:var(--card); border:1.5px solid var(--line); border-radius:14px;
+    padding:14px 8px; text-align:center; cursor:pointer; transition:.12s; user-select:none;
+  }
+  .type:active{transform:scale(.98);}
+  .type.on{border-color:var(--gold); background:#fffaf1; box-shadow:0 0 0 3px #f0e2c6;}
+  .type .ic{font-size:22px; line-height:1;}
+  .type .nm{margin-top:6px; font-size:13px; font-weight:600; color:var(--navy);}
+  .type .ds{margin-top:2px; font-size:10.5px; color:var(--muted); line-height:1.25;}
+
+  .mic-zone{text-align:center; margin:20px 0 8px;}
+  .mic{
+    width:104px; height:104px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--navy); color:#fff; font-size:40px; line-height:104px;
+    box-shadow:0 6px 18px rgba(15,37,64,.28); transition:.14s; position:relative;
+  }
+  .mic:active{transform:scale(.96);}
+  .mic.live{background:var(--warn); animation:pulse 1.3s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(178,59,46,.45);}70%{box-shadow:0 0 0 22px rgba(178,59,46,0);}100%{box-shadow:0 0 0 0 rgba(178,59,46,0);}}
+  .mic-label{margin-top:12px; font-size:14px; color:var(--muted); font-weight:500; min-height:20px;}
+
+  .transcript{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; margin:14px 0 0; min-height:66px; font-size:15.5px; line-height:1.55;
+    color:var(--ink); white-space:pre-wrap;
+  }
+  .transcript.empty{color:#9aa4ae; font-style:italic;}
+  .transcript-tools{display:flex; gap:8px; margin-top:8px;}
+  .tbtn{
+    flex:1; background:transparent; border:1px solid var(--line); border-radius:10px;
+    padding:9px; font-size:13px; color:var(--navy); font-weight:600; cursor:pointer;
+  }
+  .tbtn:active{background:#f0ece3;}
+  textarea.manual{
+    width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    font-size:15px; font-family:inherit; resize:vertical; min-height:64px; margin-top:10px;
+    color:var(--ink); background:var(--card);
+  }
+
+  .parse-btn{
+    width:100%; margin-top:16px; background:var(--gold); color:#fff; border:none;
+    border-radius:14px; padding:16px; font-size:16px; font-weight:700; cursor:pointer;
+    letter-spacing:.02em; box-shadow:0 4px 12px rgba(184,137,58,.3);
+  }
+  .parse-btn:active{transform:scale(.99);}
+  .parse-btn:disabled{background:#cbc6ba; box-shadow:none;}
+
+  .review{margin-top:22px; display:none;}
+  .review h2{font-size:15px; color:var(--navy); margin:0 0 10px; letter-spacing:.02em;}
+  .field{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:11px 13px; margin-bottom:9px;
+  }
+  .field.missing{border-color:var(--warn); background:var(--warnbg);}
+  .field .lab{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; display:flex; justify-content:space-between; align-items:center;}
+  .field .req{color:var(--warn); font-size:10px; letter-spacing:.04em;}
+  .field .opt{color:#9aa4ae; font-size:10px; letter-spacing:.04em;}
+  .field input{
+    width:100%; border:none; background:transparent; font-size:16px; font-family:inherit;
+    color:var(--ink); padding:5px 0 2px; outline:none;
+  }
+  .field input::placeholder{color:#b9c0c8;}
+  .field.missing input::placeholder{color:#d98d82;}
+  .missing-note{font-size:11.5px; color:var(--warn); margin-top:2px; font-weight:600;}
+
+  .submit-btn{
+    width:100%; margin-top:14px; background:var(--navy); color:#fff; border:none;
+    border-radius:14px; padding:17px; font-size:16px; font-weight:700; cursor:pointer;
+  }
+  .submit-btn:active{transform:scale(.99);}
+  .flagbar{
+    margin-top:10px; font-size:12.5px; color:var(--warn); text-align:center; font-weight:600; min-height:16px;
+  }
+
+  .done{display:none; text-align:center; padding:30px 10px;}
+  .done .big{font-size:46px;}
+  .done h2{font-size:20px; color:var(--navy); margin:8px 0 4px;}
+  .done p{font-size:14px; color:var(--muted); margin:0 0 18px;}
+  .filebox{
+    background:var(--navy); color:#dfe7ef; text-align:left; border-radius:12px;
+    padding:14px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px;
+    white-space:pre-wrap; line-height:1.5; overflow-x:auto;
+  }
+  .done .row{display:flex; gap:8px; margin-top:12px;}
+  .done .row button{
+    flex:1; border-radius:12px; padding:14px; font-size:14px; font-weight:700; cursor:pointer; border:none;
+  }
+  .copy{background:var(--gold); color:#fff;}
+  .again{background:transparent; border:1.5px solid var(--line)!important; color:var(--navy);}
+
+  .hint{font-size:12px; color:var(--muted); text-align:center; margin-top:14px; line-height:1.5;}
+  .nomic{background:var(--warnbg); border:1px solid #eecbc4; color:var(--warn); border-radius:10px; padding:10px 12px; font-size:12.5px; margin-top:10px; display:none;}
+</style>
+</head>
+<body>
+<header>
+  <a class="home" href="index.html">← Home</a>
+  <div class="brand">Integrity Homes</div>
+  <h1>Agent Intake</h1>
+  <div class="sub">Pick a type, tap the mic, and just talk.</div>
+</header>
+
+<div class="wrap">
+
+  <div class="types" id="types">
+    <div class="type" data-type="buyer">
+      <div class="ic">🏠</div><div class="nm">Buyer</div>
+      <div class="ds">New buyer lead</div>
+    </div>
+    <div class="type" data-type="offer">
+      <div class="ic">✍️</div><div class="nm">Buyer-Offer</div>
+      <div class="ds">Writing on a house</div>
+    </div>
+    <div class="type" data-type="seller">
+      <div class="ic">🔑</div><div class="nm">Seller</div>
+      <div class="ds">New listing</div>
+    </div>
+  </div>
+
+  <div id="stage" style="display:none;">
+    <div class="mic-zone">
+      <button class="mic" id="mic">🎙️</button>
+      <div class="mic-label" id="micLabel">Tap to talk</div>
+    </div>
+
+    <div class="transcript empty" id="transcript">Your words will show up here…</div>
+    <div class="transcript-tools">
+      <button class="tbtn" id="clearBtn">Clear</button>
+      <button class="tbtn" id="typeInstead">Type it out</button>
+      <button class="tbtn" id="fillByHand">Fill in blanks</button>
+    </div>
+    <textarea class="manual" id="manual" placeholder="…or just type everything here in your own words" style="display:none;"></textarea>
+
+    <div class="nomic" id="nomic">
+      Voice isn't available in this browser. No problem — tap “Type instead” and enter it, or open this page in Safari or Chrome for the mic.
+    </div>
+
+    <button class="parse-btn" id="parseBtn" disabled>Read it back →</button>
+  </div>
+
+  <div class="review" id="review">
+    <h2 id="reviewTitle">Check what I caught</h2>
+    <div id="fields"></div>
+    <div class="flagbar" id="flagbar"></div>
+    <button class="submit-btn" id="submitBtn">Save intake</button>
+  </div>
+
+  <div class="done" id="done">
+    <div class="big">✅</div>
+    <h2 id="doneTitle">Intake saved</h2>
+    <p id="doneSub"></p>
+    <div class="filebox" id="filebox"></div>
+    <div id="driveNote" style="font-size:12.5px; font-weight:600; margin:12px 0 0; min-height:16px;"></div>
+    <div class="row">
+      <button class="copy" id="copyBtn">Copy file</button>
+      <button class="again" id="againBtn">New intake</button>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">
+    Tip: say it naturally — name, phone, email, and the important stuff. I'll sort it into the right slots and tell you if anything's missing.
+  </div>
+
+</div>
+
+<script>
+/* ---------- backend config ---------- */
+// A finished intake goes straight into the "IH Live Transaction Tracker" Google
+// Sheet, which is the source of truth for every deal: a Buyer-Offer becomes a
+// row on Active Transactions, a Seller becomes a row on Listings, and a Buyer
+// becomes a row on Buyer Leads. If this is ever blank the app still works, it
+// just shows the file to copy by hand instead of filing it.
+const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
+
+/* ---------- field definitions per type ---------- */
+const TYPES = {
+  buyer: {
+    label:"Buyer",
+    title:"New buyer",
+    fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose client this is"},
+      {key:"names", lab:"Client name(s)", req:true},
+      {key:"phone", lab:"Best phone", req:true},
+      {key:"email", lab:"Email", req:true},
+      {key:"preapproval", lab:"Pre-approval status", req:true, ph:"Attached / pending with lender / none yet"},
+      {key:"pricerange", lab:"Price range", req:false},
+      {key:"areas", lab:"Areas / must-haves", req:false},
+      {key:"notes", lab:"Anything we should know", req:false},
+    ]
+  },
+  offer: {
+    label:"Buyer-Offer",
+    title:"Buyer writing an offer",
+    fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose deal this is"},
+      {key:"names", lab:"Buyer name(s)", req:true},
+      {key:"phone", lab:"Best phone", req:true},
+      {key:"email", lab:"Email", req:true},
+      {key:"address", lab:"Property address", req:true},
+      {key:"price", lab:"Offer price", req:true},
+      {key:"preapproval", lab:"Pre-approval status", req:true, ph:"Attached / pending with lender / none yet"},
+      {key:"closedate", lab:"Close date", req:true, ph:"Target closing date"},
+      {key:"earnest", lab:"Earnest money", req:true, ph:"Amount"},
+      {key:"notes", lab:"Anything we should know", req:false},
+    ]
+  },
+  seller: {
+    label:"Seller",
+    title:"New listing",
+    fields:[
+      {key:"agent", lab:"Your name", req:false, ph:"So the office knows whose listing this is"},
+      {key:"address", lab:"Property address", req:true},
+      {key:"names", lab:"Seller name(s)", req:true},
+      {key:"phone", lab:"Best phone", req:true},
+      {key:"email", lab:"Email", req:true},
+      {key:"listdate", lab:"Anticipated list date", req:true, ph:"Drives the whole launch timeline"},
+      {key:"notes", lab:"Anything we should know", req:false},
+    ]
+  }
+};
+
+let curType = null;
+let transcript = "";
+let recognizing = false;
+let rec = null;
+
+/* ---------- speech setup ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+// One listening session per turn, ended by the browser's own pause detection
+// (continuous=false) instead of a hand-rolled silence timer on top of
+// continuous mode. iOS WebKit (Safari AND Chrome on iPhone - Apple requires
+// every iOS browser to use WebKit under the hood) is unreliable at
+// auto-restarting a continuous session after it pauses, which left the app
+// stuck "listening" forever with nothing happening. Single-shot sessions
+// don't depend on that restart ever working, so she never has to tap
+// anything to end a turn - only the very first tap (to start) is
+// unavoidable, since browsers require a gesture before they'll open the mic.
+function makeRec(){
+  if(!SR) return null;
+  const r = new SR();
+  r.lang="en-US"; r.continuous=false; r.interimResults=true;
+  let finalTxt = transcript;
+  r.onresult=(e)=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal){ finalTxt += (finalTxt?" ":"") + t.trim(); }
+      else interim += t;
+    }
+    transcript = finalTxt;
+    showTranscript((finalTxt + " " + interim).trim());
+    enableParse();
+  };
+  r.onend=()=>{
+    // recognizing is still true here unless stopRec() (cleanup) already set it
+    // false before calling rec.stop() - that's how we tell "she paused, or
+    // tapped to finish" apart from a programmatic reset that shouldn't
+    // re-trigger the conversation.
+    const wasLive=recognizing;
+    recognizing=false;
+    micBtn.classList.remove('live'); micBtn.textContent="🎙️";
+    if(wasLive && transcript.trim()){ showReview(getText()); }
+    else if(!transcript.trim()){ micLabel.textContent="Tap to talk"; }
+  };
+  r.onerror=(e)=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ stopRec(); document.getElementById('nomic').style.display='block'; } };
+  return r;
+}
+
+/* ---------- speech output (read-back) ---------- */
+const SS = window.speechSynthesis;
+function speak(text){
+  if(!SS || !text) return;
+  try{
+    SS.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1; u.pitch=1; u.lang='en-US';
+    SS.speak(u);
+  }catch(_){}
+}
+// Speaks, then calls back when done. Falls back on a timeout in case onend
+// never fires (seen on some mobile browsers when the tab loses focus).
+function speakThen(text, cb){
+  if(!SS || !text){ cb&&cb(); return; }
+  try{
+    SS.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=1; u.pitch=1; u.lang='en-US';
+    let fired=false;
+    const done=()=>{ if(fired) return; fired=true; cb&&cb(); };
+    u.onend=done; u.onerror=done;
+    SS.speak(u);
+    setTimeout(done, Math.max(4000, text.length*80));
+  }catch(_){ cb&&cb(); }
+}
+function summaryText(parsed){
+  const def=TYPES[curType];
+  const said=def.fields.filter(f=>f.key!=="notes" && parsed[f.key]).map(f=>f.lab+": "+parsed[f.key]);
+  return said.length ? "Here's what I caught. "+said.join(". ")+"." : "I didn't catch any details yet.";
+}
+
+/* ---------- follow-up conversation for missing required fields ----------
+   Free talk first (simple, doesn't hold Michele to a script). Only what's
+   still missing after that gets asked about, one field at a time, and she
+   can tap the mic anytime to bail into free talk instead. */
+let followUpQueue=[];
+let followUpActive=false;
+let followUpRec=null;
+
+const QUESTION_FOR={
+  names:"What's the name?", phone:"What's the best phone number?",
+  email:"What's their email?", address:"What's the property address?",
+  price:"What's the offer price?", earnest:"How much is the earnest money?",
+  closedate:"What's the target close date?", listdate:"When do you expect to list it?",
+  preapproval:"Are they pre-approved, pending with a lender, or not yet?",
+};
+function questionFor(f){ return QUESTION_FOR[f.key] || ("What's the "+f.lab.toLowerCase()+"?"); }
+
+function parseFieldAnswer(key, text){
+  text=text.trim();
+  if(/^(skip|not sure|i don'?t know|dont know|later|no idea|pass)\.?$/i.test(text)) return "";
+  if(key==="email"){ const m=text.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/); return m?m[0]:text; }
+  if(key==="phone"){ const m=text.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/); return m?m[0].trim():text; }
+  if(key==="price"||key==="earnest"){
+    const m=[...text.matchAll(/\$?\s?(\d{1,3}(?:,\d{3})+|\d{3,7})(?:\s?(k|thousand))?/gi)];
+    if(m.length){ let n=parseInt(m[0][1].replace(/,/g,""),10); if(m[0][2]) n*=1000; return "$"+n.toLocaleString(); }
+    return text;
+  }
+  if(key==="preapproval"){
+    if(/not pre|no pre|isn't pre|needs? (?:a )?lender|need.{0,10}pre-?approv|none/i.test(text)) return "Needs pre-approval / no lender yet";
+    if(/pending|working with|in process|with (?:a )?lender/i.test(text)) return "Pending with lender";
+    if(/pre-?approv|yes|approved/i.test(text)) return "Pre-approved";
+    return text;
+  }
+  if(key==="closedate"||key==="listdate"){
+    const m=text.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/i);
+    return m?m[0]:text;
+  }
+  return text;
+}
+
+function startFollowUp(missingKeys){
+  if(!SR || !missingKeys.length) return;
+  followUpQueue=missingKeys.slice();
+  followUpActive=true;
+  askNext();
+}
+function stopFollowUp(){
+  followUpActive=false;
+  followUpQueue=[];
+  if(followUpRec){ try{followUpRec.stop();}catch(_){} followUpRec=null; }
+}
+function askNext(){
+  if(!followUpActive) return;
+  if(!followUpQueue.length){
+    followUpActive=false;
+    speak("That's everything I need. Feel free to review and save.");
+    return;
+  }
+  const key=followUpQueue.shift();
+  const f=TYPES[curType].fields.find(x=>x.key===key);
+  if(!f){ askNext(); return; }
+  speakThen(questionFor(f), ()=>listenOnce(key));
+}
+function listenOnce(key){
+  if(!followUpActive || !SR){ return; }
+  const fLabel=(TYPES[curType].fields.find(x=>x.key===key)||{}).lab||"";
+  micBtn.classList.add('live'); micBtn.textContent="⏹";
+  micLabel.textContent="Listening for "+fLabel;
+  const r=new SR();
+  r.lang="en-US"; r.continuous=false; r.interimResults=false;
+  followUpRec=r;
+  let captured="";
+  r.onresult=(e)=>{ captured=e.results[0][0].transcript; };
+  r.onerror=()=>{};
+  r.onend=()=>{
+    micBtn.classList.remove('live'); micBtn.textContent="🎙️"; micLabel.textContent="Tap to talk";
+    followUpRec=null;
+    if(!followUpActive) return;
+    if(captured) applyFollowUpAnswer(key, captured); else askNext();
+  };
+  try{ r.start(); }catch(_){ askNext(); }
+}
+function applyFollowUpAnswer(key, raw){
+  const val=parseFieldAnswer(key, raw);
+  const inp=document.querySelector('#fields input[data-key="'+key+'"]');
+  if(inp && val){
+    inp.value=val;
+    const fld=inp.closest('.field');
+    fld.classList.remove('missing');
+    const mn=fld.querySelector('.missing-note'); if(mn) mn.remove();
+  }
+  updateFlagbar();
+  askNext();
+}
+
+/* ---------- Claude-powered conversation ----------
+   Primary path: send what she said (plus whatever fields are already filled)
+   to the converse backend action, which calls Claude to extract fields and
+   pick the next natural question. Falls back to the local regex parser +
+   scripted follow-up above if Claude is ever unavailable (no API key set
+   yet, network hiccup) - the app never breaks, it just gets less clever. */
+let claudeAvailable=true;
+let claudeConvoActive=false;
+let convoRec=null;
+
+async function converseTurn(said){
+  try{
+    const resp=await fetch(SHEET_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({
+        action:"converse", type:curType, typeLabel:TYPES[curType].label,
+        fieldDefs:TYPES[curType].fields, know:collectFields(), saidJustNow:said
+      })
+    });
+    const data=await resp.json();
+    if(!data || !data.ok) return null;
+    return data;
+  }catch(_){ return null; }
+}
+function setThinking(on){
+  if(on) micLabel.textContent="Thinking…";
+}
+function listenOnceAsync(){
+  return new Promise(resolve=>{
+    if(!SR){ resolve(""); return; }
+    micBtn.classList.add('live'); micBtn.textContent="⏹";
+    micLabel.textContent="Listening…";
+    const r=new SR();
+    r.lang="en-US"; r.continuous=false; r.interimResults=false;
+    convoRec=r;
+    let captured="";
+    r.onresult=(e)=>{ captured=e.results[0][0].transcript; };
+    r.onerror=()=>{};
+    r.onend=()=>{
+      micBtn.classList.remove('live'); micBtn.textContent="🎙️"; micLabel.textContent="Tap to talk";
+      convoRec=null;
+      resolve(captured);
+    };
+    try{ r.start(); }catch(_){ resolve(""); }
+  });
+}
+function stopClaudeConvo(){
+  claudeConvoActive=false;
+  if(convoRec){ try{convoRec.stop();}catch(_){} convoRec=null; }
+}
+function applyTurn(turn){
+  renderReview(turn.fields||{});
+}
+async function runConversation(said){
+  stopRec();
+  document.getElementById('hint').style.display='none';
+  document.getElementById('review').style.display='block';
+  document.getElementById('review').scrollIntoView({behavior:'smooth',block:'start'});
+  if(!claudeAvailable){ legacyShowReview(said?parse(said):{}); return; }
+  document.getElementById('fields').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px 0;">Thinking…</div>';
+  setThinking(true);
+  const turn=await converseTurn(said);
+  if(!turn){ claudeAvailable=false; legacyShowReview(said?parse(said):{}); return; }
+  claudeConvoActive=!turn.done;
+  applyTurn(turn);
+  if(turn.done) speak(turn.spokenLine);
+  else speakThen(turn.spokenLine, continueConversation);
+}
+async function continueConversation(){
+  if(!claudeConvoActive) return;
+  const answer=await listenOnceAsync();
+  if(!claudeConvoActive) return; // bailed out (mic tap) while listening
+  if(!answer.trim()) return; // nothing captured - she can edit by hand or tap mic
+  setThinking(true);
+  const turn=await converseTurn(answer);
+  if(!turn){ claudeAvailable=false; claudeConvoActive=false; startFollowUp(missingReqKeys()); return; }
+  applyTurn(turn);
+  claudeConvoActive=!turn.done;
+  if(turn.done) speak(turn.spokenLine);
+  else speakThen(turn.spokenLine, continueConversation);
+}
+
+/* ---------- UI wiring ---------- */
+document.querySelectorAll('.type').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.type').forEach(t=>t.classList.remove('on'));
+    el.classList.add('on');
+    curType = el.dataset.type;
+    document.getElementById('stage').style.display='block';
+    resetForNewType();
+    if(!SR){ document.getElementById('nomic').style.display='block'; typeInstead(); }
     document.getElementById('stage').scrollIntoView({behavior:'smooth',block:"nearest'});
   });
 });
