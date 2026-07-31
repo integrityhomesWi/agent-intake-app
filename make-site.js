@@ -19,7 +19,10 @@ const path = require('path');
 
 // The complete list of files that may ever be published. Adding to this list is
 // a deliberate act. Never widen it to a glob or a directory copy.
-const PUBLIC_FILES = ['index.html', 'command-center.html', 'home.html'];
+// index.html is the launcher (was home.html until the 2026-07-30 rename that
+// made it the site root) and it links to the other two, so all three ship or
+// the launcher is a dead end.
+const PUBLIC_FILES = ['index.html', 'intake.html', 'command-center.html'];
 
 const SRC = __dirname;
 const OUT = path.join(__dirname, 'site');
