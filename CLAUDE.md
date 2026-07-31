@@ -6,7 +6,7 @@ This file is the project constitution. Read it before every task. Keep it follow
 
 A voice-first intake web app for Integrity Homes real estate agents. An agent picks one of three intake types, taps a mic, and just talks. The app transcribes speech, parses it into structured fields, flags any missing required info, and saves a clean markdown intake file into a specific Google Drive folder. It must work on iPhone and Android as a hosted web page (no app store, no install) — the same model as a published HTML link.
 
-The front end already exists as a single self-contained HTML file (`index.html`). The backend is built: `google-sheets-backend.gs` runs as an Apps Script web app and files each intake straight into the IH Live Transaction Tracker sheet, which is the source of truth (see the data model note below).
+The front end is three static HTML files: `index.html` (the launcher/front door, so GitHub Pages serves it at the site root), `intake.html` (the voice/type/fill-in-blanks intake app), and `command-center.html` (the live dashboard). The backend is built: `google-sheets-backend.gs` runs as an Apps Script web app and files each intake straight into the IH Live Transaction Tracker sheet, which is the source of truth (see the data model note below).
 
 ## Who uses it and why
 
@@ -66,7 +66,7 @@ Every required field uses the same rule: **prompt if missing, allow submit anywa
   Why the sheet and not markdown files: John and Lindsay already work in the sheet every day, it holds things markdown cannot (live formulas for Days Out, auto-counting goals) and things the deal files never had (18 listings, 33 closings, cap and pipeline). The markdown Deal-Files plan is **retired as a source of truth**. Existing deal files are historical reference only. Do not write to them and do not reintroduce them as a second source.
   Deal IDs (IH-YYMM-NNNN, see WB-11-Build-Spec.md) are not currently assigned by the sheet backend. Rows are identified by the value in the first column (address, or client name on Buyer Leads). Revisit if IDs are needed.
 - Parallel Claude Code sessions (ruling 2026-07-30, final, overrides anything earlier): John runs more than one Claude Code session against this same project. They are split by a hard line with zero file overlap.
-  - Code/specs session (this one): owns every file in the repo — `google-sheets-backend.gs`, `index.html`, `command-center.html`, `home.html`, `CLAUDE.md`, and every other `.md` spec doc. Deploys the Apps Script backend.
+  - Code/specs session (this one): owns every file in the repo — `google-sheets-backend.gs`, `index.html`, `intake.html`, `command-center.html`, `CLAUDE.md`, and every other `.md` spec doc. Deploys the Apps Script backend.
   - Data-entry session: owns only the row/cell data in the IH Live Transaction Tracker Sheet, filling gaps from documents in the "Catch-Up Docs (Michele)" Drive folder (`1i5PsNcgKD-3dvHUy6cAXuo-b69dQmtI2`). Never opens the Apps Script project or any repo file. Before writing a cell it must GET `?action=list` and use the exact key string returned (address/name matching is a literal string compare, not fuzzy) and it never creates new rows through the endpoint (browser-only for that) — the `save` action only updates a row that already exists.
   - Why: on 2026-07-29 two sessions editing `google-sheets-backend.gs` at the same time silently overwrote one session's in-progress paste with no error. The fix is a lane with no shared file, not more caution within a shared one.
 
