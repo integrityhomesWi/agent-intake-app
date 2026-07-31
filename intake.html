@@ -259,6 +259,21 @@ let rec = null;
 
 /* ---------- speech setup ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Auto-advances once she's gone quiet for a bit, so she never has to tap
+// anything to end a turn - only the very first tap (to start) is unavoidable,
+// since browsers require a gesture before they'll open the mic.
+let silenceTimer=null;
+function resetSilenceTimer(){
+  clearTimeout(silenceTimer);
+  silenceTimer=setTimeout(()=>{
+    if(recognizing && transcript.trim()){
+      stopRec();
+      showReview(getText());
+    }
+  }, 1600);
+}
+function clearSilenceTimer(){ clearTimeout(silenceTimer); silenceTimer=null; }
+
 function makeRec(){
   if(!SR) return null;
   const r = new SR();
@@ -274,6 +289,7 @@ function makeRec(){
     transcript = finalTxt;
     showTranscript((finalTxt + " " + interim).trim());
     enableParse();
+    resetSilenceTimer();
   };
   r.onend=()=>{ if(recognizing){ try{r.start();}catch(_){} } };
   r.onerror=(e)=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ stopRec(); document.getElementById('nomic').style.display='block'; } };
@@ -407,6 +423,89 @@ function applyFollowUpAnswer(key, raw){
   askNext();
 }
 
+/* ---------- Claude-powered conversation ----------
+   Primary path: send what she said (plus whatever fields are already filled)
+   to the converse backend action, which calls Claude to extract fields and
+   pick the next natural question. Falls back to the local regex parser +
+   scripted follow-up above if Claude is ever unavailable (no API key set
+   yet, network hiccup) - the app never breaks, it just gets less clever. */
+let claudeAvailable=true;
+let claudeConvoActive=false;
+let convoRec=null;
+
+async function converseTurn(said){
+  try{
+    const resp=await fetch(SHEET_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({
+        action:"converse", type:curType, typeLabel:TYPES[curType].label,
+        fieldDefs:TYPES[curType].fields, know:collectFields(), saidJustNow:said
+      })
+    });
+    const data=await resp.json();
+    if(!data || !data.ok) return null;
+    return data;
+  }catch(_){ return null; }
+}
+function setThinking(on){
+  if(on) micLabel.textContent="Thinking…";
+}
+function listenOnceAsync(){
+  return new Promise(resolve=>{
+    if(!SR){ resolve(""); return; }
+    micBtn.classList.add('live'); micBtn.textContent="⏹";
+    micLabel.textContent="Listening…";
+    const r=new SR();
+    r.lang="en-US"; r.continuous=false; r.interimResults=false;
+    convoRec=r;
+    let captured="";
+    r.onresult=(e)=>{ captured=e.results[0][0].transcript; };
+    r.onerror=()=>{};
+    r.onend=()=>{
+      micBtn.classList.remove('live'); micBtn.textContent="🎙️"; micLabel.textContent="Tap to talk";
+      convoRec=null;
+      resolve(captured);
+    };
+    try{ r.start(); }catch(_){ resolve(""); }
+  });
+}
+function stopClaudeConvo(){
+  claudeConvoActive=false;
+  if(convoRec){ try{convoRec.stop();}catch(_){} convoRec=null; }
+}
+function applyTurn(turn){
+  renderReview(turn.fields||{});
+}
+async function runConversation(said){
+  stopRec();
+  document.getElementById('hint').style.display='none';
+  document.getElementById('review').style.display='block';
+  document.getElementById('review').scrollIntoView({behavior:'smooth',block:'start'});
+  if(!claudeAvailable){ legacyShowReview(said?parse(said):{}); return; }
+  document.getElementById('fields').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px 0;">Thinking…</div>';
+  setThinking(true);
+  const turn=await converseTurn(said);
+  if(!turn){ claudeAvailable=false; legacyShowReview(said?parse(said):{}); return; }
+  claudeConvoActive=!turn.done;
+  applyTurn(turn);
+  if(turn.done) speak(turn.spokenLine);
+  else speakThen(turn.spokenLine, continueConversation);
+}
+async function continueConversation(){
+  if(!claudeConvoActive) return;
+  const answer=await listenOnceAsync();
+  if(!claudeConvoActive) return; // bailed out (mic tap) while listening
+  if(!answer.trim()) return; // nothing captured - she can edit by hand or tap mic
+  setThinking(true);
+  const turn=await converseTurn(answer);
+  if(!turn){ claudeAvailable=false; claudeConvoActive=false; startFollowUp(missingReqKeys()); return; }
+  applyTurn(turn);
+  claudeConvoActive=!turn.done;
+  if(turn.done) speak(turn.spokenLine);
+  else speakThen(turn.spokenLine, continueConversation);
+}
+
 /* ---------- UI wiring ---------- */
 document.querySelectorAll('.type').forEach(el=>{
   el.addEventListener('click',()=>{
@@ -423,7 +522,8 @@ document.querySelectorAll('.type').forEach(el=>{
 const micBtn=document.getElementById('mic');
 const micLabel=document.getElementById('micLabel');
 micBtn.addEventListener('click',()=>{
-  if(followUpActive){
+  if(claudeConvoActive || followUpActive){
+    stopClaudeConvo();
     stopFollowUp();
     speak("Okay, go ahead.");
     micBtn.classList.remove('live'); micBtn.textContent="🎙️";
@@ -444,6 +544,7 @@ function startRec(){
 }
 function stopRec(){
   recognizing=false;
+  clearSilenceTimer();
   if(rec){ try{rec.stop();}catch(_){} }
   micBtn.classList.remove('live'); micBtn.textContent="🎙️";
   micLabel.textContent = transcript ? "Tap to add more" : "Tap to talk";
@@ -461,6 +562,7 @@ function enableParse(){
 
 document.getElementById('clearBtn').addEventListener('click',()=>{
   stopFollowUp();
+  stopClaudeConvo();
   transcript=""; document.getElementById('manual').value="";
   showTranscript(""); enableParse();
 });
@@ -474,6 +576,8 @@ document.getElementById('manual').addEventListener('input',enableParse);
 
 function resetForNewType(){
   stopFollowUp();
+  stopClaudeConvo();
+  claudeAvailable=true;
   transcript=""; document.getElementById('manual').value=""; document.getElementById('manual').style.display='none';
   showTranscript(""); enableParse();
   document.getElementById('review').style.display='none';
@@ -555,8 +659,9 @@ function parse(txt){
 }
 
 /* ---------- review render ---------- */
-function showReview(parsed){
-  stopRec();
+// Fallback path only - used when Claude is unavailable. showReview(text) below
+// is the normal entry point now.
+function legacyShowReview(parsed){
   renderReview(parsed);
   document.getElementById('hint').style.display='none';
   document.getElementById('review').style.display='block';
@@ -566,16 +671,19 @@ function showReview(parsed){
   if(mKeys.length && SR) speakThen(summary, ()=>startFollowUp(mKeys));
   else speak(summary);
 }
+function showReview(txt){
+  runConversation(txt||"");
+}
 document.getElementById('parseBtn').addEventListener('click',()=>{
   const txt=getText();
   if(!txt) return;
-  showReview(parse(txt));
+  showReview(txt);
 });
 document.getElementById('fillByHand').addEventListener('click',()=>{
-  // Jump straight to the blank fields. If they already said or typed something,
-  // parse it first so nothing is thrown away; otherwise open an empty form to hand-enter.
-  const txt=getText();
-  showReview(txt ? parse(txt) : {});
+  // Jump straight to the blank fields. If she already said or typed something,
+  // it's passed along so nothing is thrown away; otherwise this opens an empty
+  // form and Claude (or the local fallback) asks the first missing question.
+  showReview(getText());
 });
 
 function renderReview(parsed){
@@ -604,7 +712,7 @@ function renderReview(parsed){
   });
   updateFlagbar();
   box.querySelectorAll('input').forEach(inp=>{
-    inp.addEventListener('focus',()=>{ if(followUpActive) stopFollowUp(); });
+    inp.addEventListener('focus',()=>{ if(followUpActive) stopFollowUp(); if(claudeConvoActive) stopClaudeConvo(); });
     inp.addEventListener('input',()=>{
       const fld=inp.closest('.field');
       const def2=TYPES[curType].fields.find(x=>x.key===inp.dataset.key);
@@ -648,6 +756,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   if(_submitted) return;
   _submitted=true;
   stopFollowUp();
+  stopClaudeConvo();
   const vals=collectFields();
   const missing=missingReq();
   const file=buildFile(vals,missing);
@@ -660,7 +769,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
   document.getElementById('done').style.display='block';
   document.getElementById('done').scrollIntoView({behavior:'smooth',block:'start'});
   window._lastFile=file;
-  saveToDrive(missing, vals);
+  saveToDrove(missing, vals);
   speak(missing.length ? "Saved, but flagged. Missing "+missing.join(", ")+"." : "Saved. Nothing missing.");
 });
 
@@ -688,7 +797,7 @@ function saveToDrive(missing, vals){
       note.textContent="Could not send. Use Copy file as backup.";
       note.style.color="var(--warn)";
     });
-  }catch(_){ 
+  }catch(_){
     note.textContent="Could not send. Use Copy file as backup.";
     note.style.color="var(--warn)";
   }
@@ -805,6 +914,8 @@ document.getElementById('copyBtn').addEventListener('click',()=>{
 });
 document.getElementById('againBtn').addEventListener('click',()=>{
   stopFollowUp();
+  stopClaudeConvo();
+  claudeAvailable=true;
   document.getElementById('done').style.display='none';
   document.querySelectorAll('.type').forEach(t=>t.classList.remove('on'));
   document.getElementById('stage').style.display='none';
