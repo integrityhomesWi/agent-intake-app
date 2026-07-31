@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integrity Homes — Transactions</title>
+<style>
+  :root{--navy:#0f2740;--navy2:#16395c;--ink:#1c2430;--muted:#6b7785;--line:#e3e8ee;--bg:#f4f6f9;--card:#fff;--gold:#c8962b;--red:#c0392b;--amber:#d9892b;--green:#1f8a4c;--blue:#1f6fb2}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+  header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:22px 28px;position:relative}
+  header h1{font-size:22px;font-weight:700}
+  header .sub{color:#b9c6d6;font-size:12.5px;margin-top:4px}
+  header .home{position:absolute;right:28px;top:24px;font-size:13px;color:var(--gold);text-decoration:none;font-weight:600}
+  .wrap{max-width:1340px;margin:0 auto;padding:20px 24px 60px}
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .stat .n{font-size:23px;font-weight:700;color:var(--navy)}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .alerts{background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;padding:14px 18px;margin-bottom:16px;font-size:13.5px}
+  .alerts h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--navy);margin-bottom:8px}
+  .alert-row{display:flex;gap:10px;padding:4px 0;align-items:flex-start}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:12px;background:#f3f5f8;border:1px solid var(--line);border-radius:14px;padding:2px 10px;white-space:nowrap}
+  .chip b{color:var(--amber);font-weight:700}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  input[type=search]{flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13.5px}
+  select,button.x{padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;cursor:pointer}
+  .legend{font-size:11.5px;color:var(--muted);margin:0 0 12px}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .b-red{background:#fce8e6;color:var(--red)}.b-amber{background:#fbf0df;color:var(--amber)}.b-green{background:#e6f4ec;color:var(--green)}.b-blue{background:#e7f0f8;color:var(--blue)}.b-gray{background:#eceff3;color:var(--muted)}.b-purple{background:#efe9f7;color:#6b46a8}
+  .tblhead,.dhead{display:grid;grid-template-columns:minmax(116px,1.3fr) 42px 70px 74px repeat(5,46px) 134px 86px 70px 18px;gap:6px;align-items:center}
+  .tblhead{padding:9px 16px;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;position:sticky;top:0;z-index:20;background:#eef2f6;border:1px solid var(--line);border-radius:8px 8px 0 0;box-shadow:0 2px 6px rgba(15,39,64,.06)}
+  .tblhead .c{text-align:center}
+  .deal{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .deal.flagged{border-left:4px solid var(--red)}
+  .deal.cancelled{opacity:.5;filter:grayscale(.55)}.deal.cancelled .price,.deal.cancelled .addr{text-decoration:line-through}
+  .deal.closedeal{opacity:.72;border-left:4px solid var(--green)}
+  .dhead{padding:11px 16px;cursor:pointer}
+  .dhead:hover{background:#fafcfe}
+  .addr{font-weight:700;color:var(--navy);font-size:14px;line-height:1.2}
+  .sub2{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .price{font-weight:700;text-align:right}
+  .ms{text-align:center;font-size:12px;cursor:pointer;border-radius:6px;padding:4px 2px;user-select:none}
+  .ms:hover{outline:1px solid var(--line)}
+  .ms .done{color:var(--green);font-weight:700}
+  .ms .wv{color:var(--muted);font-size:10.5px}
+  .ms .xp{color:var(--amber);font-size:10.5px;font-weight:700}
+  .ms .na{color:#c3cad3}
+  .na2{color:var(--muted);font-size:10px;font-weight:700;background:#eef1f4;border-radius:10px;padding:1px 6px}
+  .ms .dt{font-weight:600}
+  .ms .dt.red{color:var(--red)}.ms .dt.amber{color:var(--amber)}.ms .dt.green{color:var(--ink)}
+  .emc{text-align:center;font-size:12px;cursor:pointer;border-radius:6px;padding:4px 2px;user-select:none}
+  .emc:hover{outline:1px solid var(--line)}
+  .emc .st{font-weight:700}.emc .sent{color:var(--amber)}.emc .wait{color:var(--amber)}.emc .rec{color:var(--green)}
+  .emc .dt{font-weight:600}.emc .dt.red{color:var(--red)}.emc .dt.amber{color:var(--amber)}.emc .dt.green{color:var(--ink)}.emc .na{color:#c3cad3}
+  .titlesel{width:100%;font-size:11px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer}
+  .titlesel.set{border-color:var(--green);color:var(--green);font-weight:600}
+  .sched{text-align:center;cursor:pointer;user-select:none;font-size:11.5px;font-weight:700}
+  .sched .yes{color:var(--green)}.sched .no{color:var(--muted)}
+  .ndc{font-size:11.5px;font-weight:600;text-align:center}
+  .ndc.red{color:var(--red)}.ndc.amber{color:var(--amber)}.ndc.green{color:var(--ink)}
+  .caret{color:var(--muted);font-size:12px;transition:transform .15s;text-align:center}
+  .deal.open .caret{transform:rotate(90deg)}
+  .dbody{display:none;border-top:1px solid var(--line);padding:16px 18px;background:#fbfcfe}
+  .deal.open .dbody{display:block}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .block h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--gold);margin-bottom:7px;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:3px 0;font-size:13px}
+  .kv .k{color:var(--muted)}.kv .v{text-align:right;font-weight:500}
+  .changes li{font-size:13px;margin:4px 0 4px 16px}
+  .links a{font-size:12.5px;color:var(--blue);text-decoration:none;margin-right:14px}
+  .full{grid-column:1/-1}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:22px}
+  .agent-mine{font-size:12px;color:var(--navy);font-weight:700}
+  .agent-other{font-size:12px;color:var(--muted)}
+  .maintabs{display:flex;gap:8px;margin:4px 0 16px}
+  .mtab{padding:9px 22px;border:1px solid var(--line);background:#fff;border-radius:8px;font-weight:700;color:var(--muted);cursor:pointer;font-size:14px}
+  .mtab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .view{display:none}.view.active{display:block}
+  .gsec{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .gtitle{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px}
+  .ytd{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .ytd-l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .ytd-n{font-size:22px;font-weight:700;color:var(--navy)}
+  .ytd-p{font-weight:700;color:var(--muted)}
+  .ytd-meta{font-size:12px;color:var(--muted)}
+  .bar{flex:1;min-width:140px;height:10px;background:#e7ebf0;border-radius:6px;overflow:hidden}
+  .barfill{height:100%;background:var(--green);border-radius:6px;width:0;transition:width .3s}
+  .qgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .qcol{border-left:1px solid var(--line);padding-left:12px}
+  .qcol:first-child{border-left:none;padding-left:0}
+  .qhead{display:flex;align-items:center;gap:5px;margin-bottom:8px;font-size:12.5px}
+  .qname{font-weight:700;color:var(--navy);font-size:14px}
+  .ginp{width:32px;border:1px solid var(--line);border-radius:5px;text-align:center;font-size:12px;padding:2px}
+  .qmeta{font-size:11px;color:var(--muted);margin-left:auto;text-align:right}
+  .mrow{display:grid;grid-template-columns:32px 28px 1fr auto;gap:6px;align-items:center;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--line)}
+  .mname{font-weight:600}
+  .mact{font-weight:700;color:var(--navy)}
+  .mproj{font-size:11px;color:var(--blue)}
+  .maInp{width:26px;border:none;border-bottom:1px dashed var(--line);text-align:center;font-weight:700;font-size:12px}
+  .maInp:focus{outline:none;border-bottom-color:var(--navy)}
+  .mdelta{font-size:11px;font-weight:700;padding:0 5px;border-radius:5px}
+  .dpos{background:#e6f4ec;color:var(--green)}.dneg{background:#fce8e6;color:var(--red)}.dzero{background:#eef1f4;color:var(--muted)}
+  .cbrow{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+  .gb{width:16px;height:16px;border-radius:3px;border:2px solid #d9b3b0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;line-height:1}
+  .gb.closed{border-color:var(--green);background:#e6f4ec;color:var(--green)}
+  .gb.man{cursor:pointer}
+  .gb.proj{border-color:var(--amber);background:#fbf0df;color:var(--amber)}
+  .gb.empty{border-color:#d9b3b0;cursor:pointer}
+  .gb.empty:hover{border-color:var(--red)}
+  .gb.add{border:2px dashed #c3cad3;color:#c3cad3;cursor:pointer}
+  .gb.add:hover{border-color:var(--navy);color:var(--navy)}
+  .qtoggle{font-size:11px;color:var(--blue);cursor:pointer;margin-top:8px;user-select:none}
+  .qtoggle:hover{text-decoration:underline}
+  .qdlist{margin-top:4px;border-top:1px dotted var(--line);padding-top:5px}
+  .qdl{display:flex;gap:6px;font-size:11.5px;padding:3px 2px;align-items:center}
+  .qdl.link{cursor:pointer;border-radius:4px}
+  .qdl.link:hover{background:#f3f5f8}
+  .qdl-n{flex:1}
+  .qdl-p{font-weight:600}
+  .qdl-go{color:var(--blue);font-size:10px}
+  .gcols,.gcols2{display:grid;grid-template-columns:1fr 1.3fr;gap:14px}
+  .capf{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px}
+  .capf label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+  .capf input{font-size:15px;font-weight:700;border:none;border-bottom:1px dashed var(--line);width:96px;padding:2px;color:var(--ink)}
+  .capf input:focus{outline:none;border-bottom-color:var(--navy)}
+  .elite{display:flex;gap:6px;flex-wrap:wrap}
+  .ebox{width:22px;height:22px;border:2px solid #c3cad3;border-radius:4px;cursor:pointer}
+  .ebox.red{background:var(--red);border-color:var(--red)}.ebox.black{background:#1c1c1c;border-color:#1c1c1c}.ebox.green{background:var(--green);border-color:var(--green)}
+  .elite-leg{font-size:11px;color:var(--muted);margin-top:10px}
+  .pl2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .plh{font-size:12px;font-weight:700;color:var(--navy);border-bottom:1px solid var(--line);padding-bottom:3px;margin-bottom:6px}
+  .lninp{display:block;width:100%;border:none;border-bottom:1px dashed var(--line);font-size:13px;padding:3px 2px;margin-bottom:3px;background:transparent}
+  .lninp:focus{outline:none;border-bottom-color:var(--navy)}
+  .refrow{display:grid;grid-template-columns:1fr 60px 70px;gap:5px;margin-bottom:4px}
+  .refrow input{border:none;border-bottom:1px dashed var(--line);font-size:12px;padding:2px;background:transparent}
+  .refrow input:focus{outline:none;border-bottom-color:var(--navy)}
+  .addln,.addref{font-size:11px;color:var(--muted);border:1px dashed var(--line);background:none;border-radius:5px;padding:2px 8px;cursor:pointer;margin-top:6px}
+  .addln:hover,.addref:hover{color:var(--navy);border-color:var(--navy)}
+  .vips{display:grid;grid-template-columns:repeat(5,1fr);gap:6px 12px}
+  .ltblhead,.lrow{display:grid;grid-template-columns:minmax(150px,2fr) 92px 134px 96px 96px 92px 20px;gap:8px;align-items:center}
+  .ltblhead{padding:9px 16px;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;position:sticky;top:0;z-index:20;background:#eef2f6;border:1px solid var(--line);border-radius:8px 8px 0 0;box-shadow:0 2px 6px rgba(15,39,64,.06)}
+  .ldeal{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .lrow{padding:10px 16px}
+  .lrow:hover{background:#fafcfe}
+  .lopen{cursor:pointer}
+  .lsel{width:100%;font-size:12px;padding:4px 5px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .linp{width:100%;font-size:12.5px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+  .linp.sm{font-size:11px}
+  .lbody{display:none;border-top:1px solid var(--line);padding:14px 18px;background:#fbfcfe}
+  .ldeal.open .lbody{display:block}
+  .lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px}
+  .lkv{display:flex;flex-direction:column;gap:3px;font-size:12px}
+  .lkv>span{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  .lkv.full{grid-column:1/-1}
+  @media(max-width:900px){.ltblhead{display:none}.lrow{grid-template-columns:1fr auto auto}.lrow .price,.lrow .linp.sm{display:none}.lgrid{grid-template-columns:1fr}}
+  .teamtwo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .teamcard{border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .tch{display:flex;align-items:baseline;gap:10px}
+  .tct{font-weight:700;color:var(--navy);font-size:13px}
+  .tcn{font-size:22px;font-weight:700;color:var(--navy)}
+  .tcsub{font-size:12px;color:var(--muted);margin:2px 0 10px}
+  .tctog{cursor:pointer;user-select:none}
+  .tdlist{margin-top:10px;border-top:1px solid var(--line);padding-top:6px}
+  .tdl{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 4px;border-radius:5px}
+  .tdl[data-open]{cursor:pointer}
+  .tdl[data-open]:hover{background:#f3f5f8}
+  .tdl-n{flex:1;font-weight:600;color:var(--navy)}
+  .tdl-a{color:var(--muted)}
+  .tdl-p{font-weight:700}
+  .tdl-d{color:var(--muted);font-size:11px;width:48px;text-align:right}
+  .tdl-go{color:var(--blue);font-size:11px;width:48px;text-align:right}
+  @media(max-width:780px){.teamtwo{grid-template-columns:1fr}}
+  .teamgrid{display:flex;gap:10px;flex-wrap:wrap}
+  .tcard{background:#f7f9fb;border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:118px}
+  .tname{font-weight:700;color:var(--navy);font-size:13px}
+  .tn{font-size:12px;color:var(--muted);margin-top:1px}
+  .tv{font-size:12px;color:var(--green);font-weight:600}
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.qgrid{grid-template-columns:repeat(2,1fr)}.gcols,.gcols2,.pl2{grid-template-columns:1fr}.vips{grid-template-columns:repeat(2,1fr)}.tblhead{display:none}.dhead{grid-template-columns:1fr auto auto;row-gap:8px}.dhead .ms,.dhead .emc,.dhead .h-side,.dhead .h-price,.dhead .h-agent,.dhead .h-title,.dhead .h-next,.dhead .h-sched{display:none}.grid{grid-template-columns:1fr}}
+  .livebar{font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:12px;display:none}
+  .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
+  .livebar.err{display:block;background:var(--warnbg,#fbeae7);color:var(--red);border:1px solid #eecbc4}
+  .livebar.ok{display:block;background:#e6f4ec;color:var(--green);border:1px solid #cfe8d8}
+</style>
+</head>
+<body>
+<header>
+  <a class="home" href="index.html">← Home</a>
+  <h1>Integrity Homes — Command Center</h1>
+  <div class="sub">Deals + goals in one place · LIVE from the IH Live Transaction Tracker · the sheet is the source of truth · goal tracker auto-counts from your closings</div>
+</header>
+<div class="wrap">
+  <div class="maintabs">
+    <button class="mtab active" data-v="deals">Deals</button>
+    <button class="mtab" data-v="listings">Listings</button>
+    <button class="mtab" data-v="goals">Goals &amp; Pipeline</button>
+  </div>
+  <div id="view-deals" class="view active">
+  <div class="livebar" id="livebar"></div>
+  <div class="stats" id="stats"></div>
+  <div class="alerts" id="alerts"></div>
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="Search address, client, agent, lender...">
+    <select id="statusF"><option value="open">Open only</option><option value="all">All (incl. closed)</option><option value="closed">Closed only</option><option value="cancelled">Cancelled</option></select>
+    <select id="sideF"><option value="">All sides</option><option>Buy</option><option>Listing</option><option>Dual</option></select>
+    <select id="agentF"><option value="">All agents</option></select>
+    <select id="leadF"><option value="">All leads</option><option>Zillow</option></select>
+    <select id="sort"><option value="nd">Sort: Next due</option><option value="close">Sort: Closing</option><option value="price">Sort: Price</option></select>
+    <button class="x" id="exp">Expand all</button>
+    <button class="x" id="refresh">↻ Refresh</button>
+  </div>
+  <p class="legend"><b>Click a milestone</b> to cycle: due date → <b>Done</b> → <b>Expired</b> → <b>N/A</b>. Earnest Money cycles Due → Sent → Waiting → Rec'd → Done → N/A. Red = past/≤3d, amber = ≤14d. <b>“—” = not entered yet</b>; <b>N/A = not tracked</b>. <b>Expired</b> = contingency deadline lapsed. <b>Live:</b> every change saves straight into that row of the tracker sheet, so you, Lindsay, and this page are always looking at the same thing.</p>
+  <div class="tblhead">
+    <div>Property</div><div class="c">Side</div><div class="c">Agent</div><div class="price">Price</div>
+    <div class="c">EM</div><div class="c">Insp</div><div class="c">Radon</div><div class="c">Appr</div><div class="c">Fin</div>
+    <div class="c">Title</div><div class="c">Next Due</div><div class="c">Closing</div><div></div>
+  </div>
+  <div id="list"></div>
+  <p class="sub2" style="margin-top:8px">Showing open files by default — switch the first dropdown to see closed or cancelled.</p>
+  </div><!-- end view-deals -->
+
+  <div id="view-goals" class="view">
+    <div class="gsec">
+      <div class="gtitle">2026 Goal Tracker — Actual &amp; Projected</div>
+      <div class="ytd">
+        <span class="ytd-l">Actual (closed)</span>
+        <span class="ytd-n" id="g-ytd">0 / 45</span>
+        <span class="ytd-p" id="g-ytdpct">0%</span>
+        <div class="bar"><div class="barfill" id="g-ytdbar"></div></div>
+        <span class="ytd-meta" id="g-meta"></span>
+      </div>
+      <div class="ytd">
+        <span class="ytd-l">Projected (+ pipeline)</span>
+        <span class="ytd-n" id="g-proj" style="color:var(--blue)">0 / 45</span>
+        <span class="ytd-p" id="g-projpct">0%</span>
+        <div class="bar"><div class="barfill" id="g-projbar" style="background:var(--blue)"></div></div>
+        <span class="ytd-meta" id="g-projmeta"></span>
+      </div>
+      <div class="ytd">
+        <span class="ytd-l">Volume</span>
+        <span class="ytd-n" id="g-vol" style="color:var(--green)">$0</span>
+        <span class="ytd-meta" id="g-volmeta"></span>
+      </div>
+      <div class="qgrid" id="g-quarters"></div>
+    </div>
+    <div class="gsec"><div class="gtitle">Team Transactions <span style="font-weight:400;color:var(--muted);font-size:12px">— other agents only · closed = 2026 YTD · not in your goal</span></div><div id="g-team"></div></div>
+    <div class="gcols">
+      <div class="gsec"><div class="gtitle">Agent Cap</div><div id="g-cap"></div></div>
+      <div class="gsec"><div class="gtitle">Elite Status — 2026</div><div class="elite" id="g-elite"></div>
+        <div class="elite-leg">Click a box to cycle: ▢ open · <b style="color:var(--red)">■</b> behind · <b style="color:#1c1c1c">■</b> on track · <b style="color:var(--green)">■</b> closed</div></div>
+    </div>
+    <div class="gcols2">
+      <div class="gsec"><div class="gtitle">Pipeline</div>
+        <div class="pl2">
+          <div><div class="plh">Sellers</div><div id="g-sellers"></div><button class="addln" data-k="sellers">+ add</button></div>
+          <div><div class="plh">Buyers</div><div id="g-buyers"></div><button class="addln" data-k="buyers">+ add</button></div>
+        </div></div>
+      <div class="gsec"><div class="gtitle">Referrals</div>
+        <div class="pl2">
+          <div><div class="plh">Inbound</div><div id="g-inbound"></div><button class="addref" data-k="inbound">+ add</button></div>
+          <div><div class="plh">Outbound</div><div id="g-outbound"></div><button class="addref" data-k="outbound">+ add</button></div>
+        </div></div>
+    </div>
+    <div class="gsec"><div class="gtitle">VIPs</div><div class="vips" id="g-vips"></div><button class="addln" data-k="vips">+ add</button></div>
+    <p class="legend"><b>Closed YTD</b> and <b>Volume</b> come straight from the Closed 2026 tab of the tracker sheet, so they match what the sheet says. Month and quarter goals, cap, elite, pipeline, referrals, and VIPs still save in this browser only, because the sheet's Goals &amp; Pipeline tab is free-form and not safe to read automatically yet.</p>
+  </div><!-- end view-goals -->
+
+  <div id="view-listings" class="view">
+    <div class="toolbar">
+      <input type="search" id="lq" placeholder="Search address or agent...">
+      <select id="lstatusF"><option value="">All statuses</option></select>
+      <button class="x" id="laddbtn">Open the sheet ↗</button>
+    </div>
+    <p class="legend">Status, photos, sign, lockbox, title, and seller contacts save straight into the Listings tab of the tracker sheet. Expand a row for the full checklist. Edit List/Current price inline; log a date when you cut the price. To <b>add or remove</b> a listing, use the sheet.</p>
+    <div class="lstats" id="lstats" style="margin:6px 0 12px;font-size:13.5px;color:var(--ink)"></div>
+    <div class="ltblhead">
+      <div>Property</div><div>Agent</div><div>Status</div><div class="price">List $</div><div class="price">Current $</div><div>Last cut</div><div></div>
+    </div>
+    <div id="llist"></div>
+  </div><!-- end view-listings -->
+
+  <footer>Live system. The IH Live Transaction Tracker sheet is the source of truth, and edits here save straight back into it.</footer>
+</div>
+<script>
+/* ---------- live backend config ----------
+   The "IH Live Transaction Tracker" Google Sheet is the source of truth. This
+   endpoint is the only thing that reads and writes it. Nothing here touches
+   Drive or markdown files any more, and nothing is seeded from hardcoded data:
+   every listing, closing, and deal below comes from the sheet at page load. */
+const SHEET_ENDPOINT="https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
+const SHEET_URL="https://docs.google.com/spreadsheets/d/1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs/edit";
+
+let deals=[];                 // Active Transactions + Closed 2026
+let LST=[];                   // Listings
+let MY_CLOSED=[], TEAM_CLOSED=[];
+let LIVE=[], ACT=[];
+function recompute(){ LIVE=deals.filter(d=>!d.cancelled); ACT=LIVE.filter(d=>!d.closed); }
+const CNT=a=>a.reduce((s,d)=>s+(d.count||1),0);
+
+const today=new Date();today.setHours(0,0,0,0);
+const D=d=>Math.round((new Date(d+"T00:00:00")-today)/86400000);
+const md=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
+const mdl=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const m$=n=>"$"+(Number(n)||0).toLocaleString();
+function agentCell(name){name=name||'';const mine=name==="John Reuter";const p=name.split(' ');const short=p[0]+(p[1]?" "+p[1][0]+".":"");return `<span class="${mine?'agent-mine':'agent-other'}" title="${name}">${short}</span>`;}
+const MS=["em","insp","radon","appr","fin"];
+const MSL={em:"Earnest Money",insp:"Inspection",radon:"Radon",appr:"Appraisal",fin:"Financing",wellSeptic:"Well & Septic"};
+const ISDATE=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||"");
+
+/* ---------- sheet -> dashboard adapters ---------- */
+const p2=n=>String(n).padStart(2,"0");
+const CUR_YEAR=new Date().getFullYear();
+// Dates arrive as the cell's own text ("7/17/2026", sometimes just "7/28"), on
+// purpose: the backend does no timezone math, so a date can never come back a
+// day off. Everything here works in ISO, so normalise. Anything that is not
+// purely a date is left untouched, which is what keeps a warning like
+// "7/3 ⚠ unconfirmed" readable in the row instead of being silently dropped.
+function isoOf(v){
+  const s=String(v==null?"":v).trim();
+  let m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if(m) return m[3]+"-"+p2(m[1])+"-"+p2(m[2]);
+  m=/^(\d{1,2})\/(\d{1,2})$/.exec(s);
+  if(m) return CUR_YEAR+"-"+p2(m[1])+"-"+p2(m[2]);
+  return "";
+}
+const numOf=v=>{const n=parseFloat(String(v==null?"":v).replace(/[^0-9.\-]/g,""));return isNaN(n)?0:n;};
+// Sheet milestone text -> the vocabulary msCell and emCell already understand.
+// An exact match becomes a token so it gets its colour. Anything carrying extra
+// detail ("Done ($10,000)", "7/2 ⚠ verify rec'd") passes straight through,
+// because that detail is the part worth reading.
+function msOf(v){
+  const s=String(v==null?"":v).trim();
+  if(!s) return "";
+  const l=s.toLowerCase();
+  if(l==="done") return "done";
+  if(l==="n/a"||l==="na") return "na";
+  if(l==="waived") return "waived";
+  if(l==="expired") return "expired";
+  if(l==="rec'd"||l==="received") return "received";
+  if(l==="satisfied") return "satisfied";
+  return isoOf(s)||s;
+}
+// Writing back: dashboard token -> the wording already used in the sheet, so
+// clicking a milestone does not turn a tidy "Done" into a lowercase "done".
+const MS_COL={em:"earnest_money",insp:"inspection",radon:"radon",appr:"appraisal",fin:"financing"};
+const MS_OUT={done:"Done",expired:"Expired",na:"N/A",waived:"Waived",received:"Rec'd",satisfied:"Satisfied","":""};
+const msWrite=v=>Object.prototype.hasOwnProperty.call(MS_OUT,v)?MS_OUT[v]:v;
+
+function adaptActive(r){
+  const parties={},add=(k,v)=>{if(v&&String(v).trim())parties[k]=String(v).trim();};
+  add("Buyer",r.buyers); add("Seller",r.sellers);
+  add("Co-op agent",r.co_op_agent); add("Lender",r.lender); add("Title",r.title_company);
+  const close=isoOf(r.closing),accept=isoOf(r.accepted),dates=[];
+  if(accept)dates.push(["Acceptance",accept]);
+  if(close)dates.push(["Closing",close]);
+  const health=String(r.health||"").trim();
+  return {
+    tab:r.tab, key:r.key, rowNum:r.rowNum,
+    addr:r.address||"", side:r.side||"", owner:r.agent||"",
+    price:numOf(r.price), close, accept,
+    title:String(r.title_status||""),
+    ms:{em:msOf(r.earnest_money),insp:msOf(r.inspection),radon:msOf(r.radon),appr:msOf(r.appraisal),fin:msOf(r.financing)},
+    wellSeptic:msOf(r.well_septic), em:String(r.earnest_money||""),
+    health, daysOut:r.days_out,
+    flag:/^red$/i.test(health), flagNote:String(r.action_needed_flags||""),
+    status:health?("Health: "+health):"",
+    parties, dates, changes:[], notes:"",
+    closed:false, cancelled:false, count:1, lead:null,
+    _file:r.tab+" · row "+r.rowNum
+  };
+}
+function adaptClosed(r){
+  const cancelled=/cancel/i.test(String(r.status||"")),close=isoOf(r.closed);
+  return {
+    tab:r.tab, key:r.key, rowNum:r.rowNum,
+    addr:r.address||"", side:r.side||"", owner:r.agent||"",
+    price:numOf(r.price), close, accept:"",
+    title:"", ms:{}, wellSeptic:"", em:"", health:"", daysOut:null,
+    flag:false, flagNote:"", status:String(r.status||"Closed"),
+    parties:{}, dates:close?[["Closing",close]]:[], changes:[], notes:"",
+    closed:!cancelled, cancelled, count:1,
+    lead:(r.lead_source&&String(r.lead_source).trim())||null,
+    _file:r.tab+" · row "+r.rowNum
+  };
+}
+function adaptListing(r){
+  return {
+    tab:r.tab, key:r.key, rowNum:r.rowNum,
+    addr:r.address||"", agent:r.agent||"", status:String(r.status||""),
+    list:r.list?m$(numOf(r.list)):"", price:r.current?m$(numOf(r.current)):"",
+    reduced:String(r.last_price_cut||""),
+    pics:String(r.pictures||""), signpost:String(r.sign_post||""), sign:String(r.sign||""),
+    lockbox:String(r.lockbox||""), lockcode:String(r.lockbox_code||""),
+    title:String(r.title_search||""), titleco:String(r.title_company||""),
+    sellers:String(r.sellers||""), notes:String(r.notes||"")
+  };
+}
+
+/* ---------- live load + save ---------- */
+function setLive(cls,msg){const b=document.getElementById('livebar');b.className='livebar '+cls;b.textContent=msg;if(cls==='ok')setTimeout(()=>{b.className='livebar';},2500);}
+function loadDeals(){
+  setLive('load','Loading from the tracker sheet…');
+  const cb="__ihdeals_"+Date.now();
+  window[cb]=function(res){
+    const rows=(res&&res.deals)?res.deals:[];
+    deals=rows.filter(r=>r.source==='active').map(adaptActive)
+         .concat(rows.filter(r=>r.source==='closed').map(adaptClosed));
+    LST=rows.filter(r=>r.source==='listing').map(adaptListing);
+    MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME);
+    TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME);
+    recompute(); afterLoad();
+    setLive('ok','✓ Live from the sheet · '+CNT(ACT)+' active · '+LST.length+' listings · '+MY_CLOSED.length+' of your closings');
+    try{delete window[cb];}catch(e){}
+    if(s.parentNode)s.parentNode.removeChild(s);
+  };
+  const s=document.createElement('script');
+  s.onerror=function(){ setLive('err','Could not reach the tracker sheet. Nothing will save until it is back.'); afterLoad(); };
+  s.src=SHEET_ENDPOINT+"?action=list&callback="+cb+"&t="+Date.now();
+  document.head.appendChild(s);
+}
+// Writes specific columns of one row. The sheet finds the row by the value in
+// its first column, which is why every adapted record carries the key it was
+// read with. The request is fire-and-forget (no-cors gives us no response to
+// read), so this reports "sent", not "confirmed". Refresh is the real check.
+function saveCell(tab,key,updates){
+  if(!tab||!key||!updates||!Object.keys(updates).length) return;
+  try{
+    fetch(SHEET_ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"save",tab:tab,key:key,updates:updates})});
+    setLive('ok','✓ Sent to the sheet');
+  }catch(e){ setLive('err','That change did not send. Check your connection.'); }
+}
+function afterLoad(){ populateAgents(); recompute(); stats(); render(); renderListings(); renderGoals(); }
+function populateAgents(){
+  const sel=document.getElementById('agentF');const cur=sel.value;
+  sel.innerHTML='<option value="">All agents</option>';
+  [...new Set(deals.map(d=>d.owner).filter(Boolean))].sort().forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;sel.appendChild(op);});
+  sel.value=cur;
+}
+
+/* ---------- milestone rendering (record is the source of truth) ---------- */
+function msCell(d,k){
+ const v=(d.ms&&d.ms[k])||"";
+ if(v==="done"||v==="satisfied"||v==="completed") return `<span class="done">Done</span>`;
+ if(v==="na") return `<span class="na2">N/A</span>`;
+ if(v==="waived") return `<span class="wv">Waived</span>`;
+ if(v==="expired") return `<span class="xp">Expired</span>`;
+ if(v==="received") return `<span class="done">Rec'd</span>`;
+ if(!v) return `<span class="na">—</span>`;
+ if(ISDATE(v)){ const k2=D(v); const cls=k2<=3?"red":k2<=14?"amber":"green"; return `<span class="dt ${cls}">${md(v)}</span>`; }
+ return `<span class="wv">${v}</span>`;
+}
+function closeChip(d){if(!d)return '<span class="na">—</span>';const k=D(d);let c=k<0?"b-red":k<=3?"b-red":k<=14?"b-amber":"b-green";let l=k<0?"past":k===0?"today":k+"d";return `${md(d)} <span class="badge ${c}">${l}</span>`;}
+function nextDeadline(d){
+  const cands=[];const L={em:'EM',insp:'Insp',radon:'Radon',appr:'Appr',fin:'Fin'};
+  ['em','insp','radon','appr','fin'].forEach(k=>{const e=(d.ms&&d.ms[k])||'';if(ISDATE(e))cands.push({date:e,label:L[k]});});
+  if(d.close)cands.push({date:d.close,label:'Close'});
+  if(!cands.length)return null;
+  cands.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return cands[0];
+}
+function ndCell(d){const nd=nextDeadline(d);if(!nd)return '<span style="color:#c3cad3">—</span>';const k=D(nd.date),c=k<0?'red':k<=3?'red':k<=14?'amber':'green';return `<span class="ndc ${c}">${nd.label} ${md(nd.date)}</span>`;}
+
+// Earnest Money cell
+function emCell(d){
+ const v=(d.ms&&d.ms.em)||"";
+ if(v==="Sent")return `<span class="st sent">Sent</span>`;
+ if(v==="Waiting")return `<span class="st wait">Wait</span>`;
+ if(v==="Rec'd"||v==="received")return `<span class="st rec">Rec'd</span>`;
+ if(v==="Done"||v==="done"||v==="satisfied")return `<span class="st rec">Done</span>`;
+ if(v==="na")return `<span class="na2">N/A</span>`;
+ if(!v)return `<span class="na">—</span>`;
+ if(ISDATE(v)){const k=D(v),cls=k<=3?"red":k<=14?"amber":"green";return `<span class="dt ${cls}">${md(v)}</span>`;}
+ return `<span class="wv">${v}</span>`;
+}
+// Title dropdown
+const TITLES=["","Title Ordered","Commitment Rec'd","Prelim ALTA Rec'd","Final ALTA Rec'd","Title Policy Rev'd","Need Final Signed Docs","N/A"];
+function titleCell(d,i){
+ const cur=d.title||"";
+ const opts=TITLES.map(t=>`<option value="${t}" ${t===cur?'selected':''}>${t||'— Title —'}</option>`).join('');
+ return `<select class="titlesel ${cur?'set':''}" data-i="${i}">${opts}</select>`;
+}
+// The "Closing scheduled" toggle used to live here. It is gone because the
+// tracker sheet has no column to hold it, and a toggle that appears to save but
+// quietly forgets is worse than not having one. To bring it back, add a
+// "Closing Scheduled" column to the Active Transactions tab and to COLS_ACTIVE
+// in the backend, then render it like titleCell does.
+
+function stats(){
+ const vol=ACT.reduce((s,d)=>s+(Number(d.price)||0),0);
+ const soon=ACT.filter(d=>d.close&&D(d.close)>=0&&D(d.close)<=14);
+ document.getElementById('stats').innerHTML=[['Active deals',CNT(ACT)],['Closing ≤14 days',soon.length],['Total volume',m$(vol)],['Your deals',ACT.filter(d=>d.owner==="John Reuter").length],['Flags',ACT.filter(d=>d.flag).length]].map(s=>`<div class="stat"><div class="n">${s[1]}</div><div class="l">${s[0]}</div></div>`).join('');
+ let ah="<h3>Needs attention</h3>";
+ ACT.filter(d=>d.flag).forEach(d=>ah+=`<div class="alert-row"><span class="badge b-red">FLAG</span><div><b>${(d.addr||'').split(',')[0]}</b> — ${d.flagNote||''}</div></div>`);
+ const soonS=soon.slice().sort((a,b)=>D(a.close)-D(b.close));
+ ah+=`<div class="alert-row" style="margin-top:8px;align-items:center"><span class="badge b-amber">CLOSING ≤14d</span><div class="chips">`+soonS.map(d=>`<span class="chip">${(d.addr||'').split(',')[0]} <b>${md(d.close)}</b></span>`).join('')+`</div></div>`;
+ document.getElementById('alerts').innerHTML=ah;
+}
+
+function detail(d){
+ const dz=v=>(v===0||v)?String(v):null;
+ const fin=[["Sale price",d.price?m$(d.price):null],["Earnest money",d.em||null],["Well &amp; septic",d.wellSeptic||null],["Health",d.health||null],["Days to close",dz(d.daysOut)],["Owner / agent",d.owner],["Lead source",d.lead||null],["Status",d.status]].filter(r=>r[1]);
+ const finH=fin.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
+ const tlH=(d.dates||[]).map(t=>`<div class="kv"><span class="k">${t[0]}</span><span class="v">${ISDATE(t[1])?mdl(t[1]):t[1]}</span></div>`).join('');
+ const pH=Object.entries(d.parties||{}).map(([k,v])=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+ const chH=(d.changes&&d.changes.length)?`<div class="block full"><h4>Counters &amp; amendments</h4><ul class="changes">${d.changes.map(c=>`<li>${c}</li>`).join('')}</ul></div>`:'';
+ const contact=[["Phone",d.phone],["Email",d.email],["Pre-approval",d.preapproval]].filter(r=>r[1]);
+ const cH=contact.length?`<div class="block"><h4>Contact</h4>${contact.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}</div>`:'';
+ const noteH=d.notes?`<div class="block full"><h4>Notes</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.notes}</div></div>`:'';
+ const flagH=d.flagNote?`<div class="block full"><h4>Action needed</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.flagNote}</div></div>`:'';
+ return `<div class="grid">
+   <div class="block"><h4>Financials</h4>${finH}</div>
+   <div class="block"><h4>Timeline</h4>${tlH||'<div class="sub2">No dates yet</div>'}</div>
+   ${flagH}
+   ${cH}
+   ${pH?`<div class="block full"><h4>Parties</h4>${pH}</div>`:''}
+   ${chH}
+   ${noteH}
+   <div class="block full"><h4>Where this lives</h4><div class="sub2">${d._file||''} of the IH Live Transaction Tracker. Edits here save straight back into that row.</div></div>
+ </div>`;
+}
+
+function render(){
+ const q=document.getElementById('q').value.toLowerCase(),sf=document.getElementById('sideF').value,af=document.getElementById('agentF').value,lf=document.getElementById('leadF').value,so=document.getElementById('sort').value;
+ const stF=document.getElementById('statusF').value;
+ const stOK=d=>stF==='all'?true:stF==='closed'?!!d.closed:stF==='cancelled'?!!d.cancelled:(!d.closed&&!d.cancelled);
+ const hay=d=>((d.addr||'')+JSON.stringify(d.parties||{})+(d.status||'')+(d.owner||'')+(d.lead||'')+(d.flagNote||'')+(d.title||'')).toLowerCase();
+ let rows=deals.filter(d=>stOK(d)&&(!q||hay(d).includes(q))&&(!sf||d.side===sf)&&(!af||d.owner===af)&&(!lf||(d.lead||"")===lf));
+ rows.sort((a,b)=>{
+   if(so==="price") return (b.price||0)-(a.price||0);
+   if(so==="nd"){const na=nextDeadline(a),nb=nextDeadline(b);return (na?+new Date(na.date):Infinity)-(nb?+new Date(nb.date):Infinity);}
+   return (a.close?D(a.close):Infinity)-(b.close?D(b.close):Infinity);
+ });
+ const sideBadge=s=>`<span class="badge ${s==='Dual'?'b-purple':s==='Buy'?'b-blue':'b-gray'}">${s||'-'}</span>`;
+ document.getElementById('list').innerHTML=rows.map(d=>{
+  const i=deals.indexOf(d);
+  const msH=MS.map(k=> k==="em"
+     ? `<div class="emc" data-i="${i}" title="Earnest Money — click to cycle: Due → Sent → Waiting → Received → Done → N/A">${emCell(d)}</div>`
+     : `<div class="ms" data-i="${i}" data-k="${k}" title="${MSL[k]} — click to cycle: Done → Expired → N/A → clear">${msCell(d,k)}</div>`).join('');
+  return `<div class="deal ${d.flag?'flagged':''} ${d.cancelled?'cancelled':''} ${d.closed?'closedeal':''}" id="deal-${i}">
+    <div class="dhead">
+      <div class="opener" data-i="${i}"><div class="addr">${(d.addr||'(new)').split(',')[0]}${d.cancelled?' <span class="badge b-red">CANCELLED</span>':''}${d.closed?' <span class="badge b-green">CLOSED</span>':''}${(d.count||1)>1?' <span class="badge b-purple">DUAL ×2</span>':''} ${d.lead?'<span style="color:var(--green);font-weight:600;font-size:12px">('+d.lead+')</span>':''}</div><div class="sub2">${(d.addr||'').split(',').slice(1).join(',').trim()}${d.type?' · '+d.type:''}</div></div>
+      <div class="c h-side">${sideBadge(d.side)}</div>
+      <div class="c h-agent">${agentCell(d.owner)}</div>
+      <div class="price h-price">${d.price?m$(d.price):'—'}</div>
+      ${msH}
+      <div class="c h-title">${titleCell(d,i)}</div>
+      <div class="c h-next">${ndCell(d)}</div>
+      <div class="c">${closeChip(d.close)}</div>
+      <div class="caret opener" data-i="${i}">▶</div>
+    </div>
+    <div class="dbody">${detail(d)}</div>
+  </div>`;
+ }).join('') || '<p class="sub2" style="padding:16px">No deals to show. New intakes will appear here once they are saved.</p>';
+ // milestone cycle: date/blank -> done -> expired -> na -> ''
+ document.querySelectorAll('.ms').forEach(c=>c.addEventListener('click',e=>{
+   e.stopPropagation();
+   const d=deals[+c.dataset.i],k=c.dataset.k;
+   const order=["done","expired","na",""];
+   const cur=(d.ms&&d.ms[k])||"";
+   const idx=order.indexOf(cur);
+   d.ms=d.ms||{}; d.ms[k]=order[(idx+1)%order.length];
+   saveCell(d.tab,d.key,{[MS_COL[k]]:msWrite(d.ms[k])});
+   recompute(); render(); stats();
+ }));
+ // Earnest money cycle
+ document.querySelectorAll('.emc').forEach(c=>c.addEventListener('click',e=>{
+   e.stopPropagation();const d=deals[+c.dataset.i];
+   const order=["Sent","Waiting","received","done","na",""];
+   const cur=(d.ms&&d.ms.em)||"";const idx=order.indexOf(cur);
+   d.ms=d.ms||{}; d.ms.em=order[(idx+1)%order.length];
+   saveCell(d.tab,d.key,{earnest_money:msWrite(d.ms.em)});
+   render();
+ }));
+ // Title dropdown
+ document.querySelectorAll('.titlesel').forEach(s=>{
+   s.addEventListener('click',e=>e.stopPropagation());
+   s.addEventListener('change',e=>{e.stopPropagation();const d=deals[+s.dataset.i];d.title=s.value;s.classList.toggle('set',!!s.value);saveCell(d.tab,d.key,{title_status:s.value});});
+ });
+ // open/close
+ document.querySelectorAll('.opener').forEach(o=>o.addEventListener('click',e=>{
+   e.stopPropagation();
+   o.closest('.deal').classList.toggle('open');
+ }));
+}
+['q','statusF','sideF','agentF','leadF','sort'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+let allOpen=false;
+document.getElementById('exp').addEventListener('click',e=>{allOpen=!allOpen;document.querySelectorAll('.deal').forEach(x=>x.classList.toggle('open',allOpen));e.target.textContent=allOpen?'Collapse all':'Expand all';});
+document.getElementById('refresh').addEventListener('click',loadDeals);
+
+// ====================== GOALS & PIPELINE TAB ======================
+const G_KEY="ihcc_goals_v3";
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const GD_DEFAULT={
+  qGoals:[14,10,11,10],
+  mGoals:[3,5,5,2,3,5,4,4,3,3,3,4],
+  // Was [1,4,3,4,7,0,...] to hand-fill months the old Drive feed knew nothing
+  // about. The Closed 2026 tab now supplies every closing, so these must be
+  // zero or January through May would be counted twice.
+  mManual:[0,0,0,0,0,0,0,0,0,0,0,0],
+  cap:{goal:"$12,000",paid:""},
+  elite:Array.from({length:12},()=>"empty"),
+  sellers:["Wallace – Apr","Hamm – Mar/Apr","Katzel – Mar/Apr","Princeton – unk","CERMA"],
+  buyers:["Hamm","Anderson","Ratzel"],
+  inbound:[{name:"Mellisa",closing:"",contact:""}],
+  outbound:[{name:"",closing:"",contact:""}],
+  vips:["Kallas","Bartol","Pavlik","T. Parr","Grams","Cummar","Rook"]
+};
+function loadG(){let g=JSON.parse(JSON.stringify(GD_DEFAULT));try{const s=localStorage.getItem(G_KEY);if(s)g=Object.assign(g,JSON.parse(s));}catch(e){}g.qGoals=GD_DEFAULT.qGoals;g.mGoals=GD_DEFAULT.mGoals;g.mManual=GD_DEFAULT.mManual;return g;}
+let G=loadG();
+function saveG(){localStorage.setItem(G_KEY,JSON.stringify(G));}
+const gnum=v=>parseInt(v)||0;
+
+const MYNAME="John Reuter";
+// Splits John's deals into closed and still-projected by month. This now keys
+// off the deal actually being closed rather than its date being in the past,
+// which matters: a live deal whose closing date has slipped (the sheet flags
+// those in red) used to get counted as a closing that never happened.
+function autoCounts(){
+  const closed=Array(12).fill(0),proj=Array(12).fill(0);
+  LIVE.filter(d=>d.owner===MYNAME&&d.close).forEach(d=>{const dt=new Date(d.close+"T00:00:00");if(dt.getFullYear()!==today.getFullYear())return;const m=dt.getMonth();const c=d.count||1;if(d.closed)closed[m]+=c;else proj[m]+=c;});
+  return {closed,proj};
+}
+const monthActual=(ac,m)=>gnum(G.mManual[m])+ac.closed[m];
+
+function renderGoals(){
+  const ac=autoCounts();
+  let ytd=0;for(let m=0;m<12;m++)ytd+=monthActual(ac,m);
+  const goal=G.qGoals.reduce((a,b)=>a+gnum(b),0);
+  const pct=goal?Math.min(100,Math.round(ytd/goal*100)):0;
+  document.getElementById('g-ytd').textContent=`${ytd} / ${goal}`;
+  document.getElementById('g-ytdpct').textContent=pct+'%';
+  document.getElementById('g-ytdbar').style.width=pct+'%';
+  const projTotal=ac.proj.reduce((a,b)=>a+b,0);
+  const mineCount=CNT(ACT.filter(d=>d.owner===MYNAME));
+  document.getElementById('g-meta').textContent=`${mineCount} of yours under contract`;
+  const projY=ytd+projTotal, ppct=goal?Math.min(100,Math.round(projY/goal*100)):0;
+  document.getElementById('g-proj').textContent=`${projY} / ${goal}`;
+  document.getElementById('g-projpct').textContent=ppct+'%';
+  document.getElementById('g-projbar').style.width=ppct+'%';
+  document.getElementById('g-projmeta').textContent=`${ytd} closed + ${projTotal} under contract`;
+  const myPipeVol=ACT.filter(d=>d.owner===MYNAME).reduce((s,d)=>s+(Number(d.price)||0),0);
+  // MY_CLOSED already IS every closed deal of John's from the sheet, so adding
+  // a second pass over LIVE here would double the volume.
+  const myClosedVol=MY_CLOSED.reduce((s,d)=>s+(Number(d.price)||0),0);
+  document.getElementById('g-vol').textContent=fmtM(myClosedVol)+' closed';
+  document.getElementById('g-volmeta').textContent=`+ ${fmtM(myPipeVol)} pipeline = ${fmtM(myClosedVol+myPipeVol)} projected volume`;
+
+  const qc=document.getElementById('g-quarters');qc.innerHTML='';
+  for(let qi=0;qi<4;qi++){
+    const col=document.createElement('div');col.className='qcol';
+    let qC=0,qP=0,qMG=0;for(let m=qi*3;m<qi*3+3;m++){qC+=monthActual(ac,m);qP+=ac.proj[m];qMG+=gnum(G.mGoals[m]);}
+    const qG=gnum(G.qGoals[qi]),togo=Math.max(0,qMG-(qC+qP));
+    const actPct=qG>0?Math.round(qC/qG*100):0, projPct=qG>0?Math.round((qC+qP)/qG*100):0;
+    col.innerHTML=`<div class="qhead"><span class="qname">Q${qi+1}</span> goal <input class="ginp" data-q="${qi}" value="${qG}"><span class="qmeta">${qC}/${qG} · ${actPct}%<br><span style="color:var(--blue)">proj ${projPct}%</span><br>${(qC+qP)>=qMG&&qMG>0?'✓ done':togo+' to go'}</span></div>`;
+    const qcol=['var(--red)','var(--green)','var(--green)','var(--red)'][qi];
+    for(let m=qi*3;m<qi*3+3;m++){
+      const autoC=ac.closed[m], man=gnum(G.mManual[m]), proj=ac.proj[m];
+      const a=autoC+man, mg=gnum(G.mGoals[m]), delta=(a+proj)-mg;
+      const dcls=delta>0?'dpos':delta<0?'dneg':'dzero',dtxt=delta>0?'+'+delta:delta===0?'0':String(delta);
+      let boxes='';
+      for(let k=0;k<autoC;k++) boxes+=`<span class="gb closed" title="closed (from a deal)">✓</span>`;
+      for(let k=0;k<man;k++) boxes+=`<span class="gb closed man" data-mm="${m}" title="logged closing — click to remove">✓</span>`;
+      for(let k=0;k<proj;k++) boxes+=`<span class="gb proj" title="under contract / projected">●</span>`;
+      const empties=Math.max(0,mg-(a+proj));
+      for(let k=0;k<empties;k++) boxes+=`<span class="gb empty" data-add="${m}" title="click to log a closing"></span>`;
+      boxes+=`<span class="gb add" data-add="${m}" title="add a closing">+</span>`;
+      const row=document.createElement('div');row.className='mrow';
+      row.innerHTML=`<span class="mname" style="color:${qcol}">${MONTHS[m]}</span>
+        <input class="ginp" data-mg="${m}" value="${mg}" title="month goal">
+        <span class="cbrow">${boxes}</span>
+        <span class="mdelta ${dcls}">${mg?dtxt:''}</span>`;
+      col.appendChild(row);
+    }
+    const qS=qi*3,qE=qi*3+2;
+    const inQ=ds=>{const mo=new Date(ds+'T00:00:00').getMonth();return mo>=qS&&mo<=qE;};
+    const qClosed=MY_CLOSED.filter(d=>d.close&&inQ(d.close));
+    const qPipe=deals.filter(d=>d.owner===MYNAME&&!d.closed&&!d.cancelled&&d.close&&new Date(d.close+'T00:00:00')>=today&&inQ(d.close));
+    let dl='';
+    qClosed.forEach(d=>dl+=`<div class="qdl"><span class="qdl-n"><span style="color:var(--green)">✓</span> ${(d.addr||'').split(',')[0]}${d.lead==='Zillow'?' <span style="color:var(--green);font-weight:600">(Zillow)</span>':''}</span><span class="qdl-p">${m$(d.price)}</span></div>`);
+    qPipe.forEach(d=>dl+=`<div class="qdl link" data-open="${deals.indexOf(d)}"><span class="qdl-n"><span style="color:var(--amber)">●</span> ${(d.addr||'').split(',')[0]}${d.lead?' <span style="color:var(--green);font-weight:600">('+d.lead+')</span>':''}</span><span class="qdl-go">view →</span></div>`);
+    if(!dl)dl='<div class="qdl-empty">none logged</div>';
+    const tog=document.createElement('div');tog.className='qtoggle';tog.dataset.qd=qi;tog.textContent=`▾ see deals (${qClosed.length+qPipe.length})`;
+    const dlist=document.createElement('div');dlist.className='qdlist';dlist.id='qd-'+qi;dlist.style.display='none';dlist.innerHTML=dl;
+    col.appendChild(tog);col.appendChild(dlist);
+    qc.appendChild(col);
+  }
+  qc.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('change',()=>{G.qGoals[+i.dataset.q]=gnum(i.value);saveG();renderGoals();}));
+  qc.querySelectorAll('[data-mg]').forEach(i=>i.addEventListener('change',()=>{G.mGoals[+i.dataset.mg]=gnum(i.value);saveG();renderGoals();}));
+  qc.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.add;G.mManual[m]=gnum(G.mManual[m])+1;saveG();renderGoals();}));
+  qc.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.mm;G.mManual[m]=Math.max(0,gnum(G.mManual[m])-1);saveG();renderGoals();}));
+  qc.querySelectorAll('.qtoggle').forEach(t=>t.addEventListener('click',()=>{const el=document.getElementById('qd-'+t.dataset.qd);el.style.display=el.style.display==='none'?'block':'none';}));
+  qc.querySelectorAll('.qdl[data-open]').forEach(r=>r.addEventListener('click',()=>openDeal(+r.dataset.open)));
+
+  renderTeamCounter();renderCap();renderElite();renderLines();renderRefs2();renderVips();
+}
+// MY_CLOSED and TEAM_CLOSED are built from the sheet's Closed 2026 tab in
+// loadDeals. Both used to be hardcoded arrays here, frozen in July, and they had
+// already drifted behind the sheet by several closings.
+const fmtM=n=>'$'+(n/1e6).toFixed(2)+'M';
+function teamGrid(by){return `<div class="teamgrid">`+Object.entries(by).sort((a,b)=>b[1].n-a[1].n).map(([a,o])=>`<div class="tcard"><div class="tname">${a}</div><div class="tn">${o.n} deal${o.n>1?'s':''}</div><div class="tv">${m$(o.v)}</div></div>`).join('')+`</div>`;}
+function renderTeamCounter(){
+  const act=deals.filter(d=>d.owner!==MYNAME&&!d.closed&&!d.cancelled);
+  const byA={};act.forEach(d=>{(byA[d.owner]=byA[d.owner]||{n:0,v:0});byA[d.owner].n++;byA[d.owner].v+=(Number(d.price)||0);});
+  const actVol=act.reduce((s,d)=>s+(Number(d.price)||0),0);
+  const cl=TEAM_CLOSED;
+  const byC={};cl.forEach(d=>{(byC[d.owner]=byC[d.owner]||{n:0,v:0});byC[d.owner].n++;byC[d.owner].v+=(Number(d.price)||0);});
+  const clVol=cl.reduce((s,d)=>s+(Number(d.price)||0),0);
+  const actList=act.map(d=>`<div class="tdl" data-open="${deals.indexOf(d)}"><span class="tdl-n">${(d.addr||'').split(',')[0]}${d.lead?' <span style="color:var(--green);font-weight:600">('+d.lead+')</span>':''}</span><span class="tdl-a">${(d.owner||'').split(' ')[0]}</span><span class="tdl-p">${m$(d.price)}</span><span class="tdl-go">view →</span></div>`).join('');
+  const clList=cl.map(d=>`<div class="tdl static"><span class="tdl-n">${(d.addr||'').split(',')[0]}${d.lead==='Zillow'?' <span style="color:var(--green);font-weight:600">(Zillow)</span>':''}</span><span class="tdl-a">${(d.owner||'').split(' ')[0]}</span><span class="tdl-p">${m$(d.price)}</span><span class="tdl-d">${d.close?mdl(d.close):'—'}</span></div>`).join('');
+  let h=`<div class="teamtwo">
+    <div class="teamcard"><div class="tch tctog" data-tt="act"><span class="tct">Active ▸</span><span class="tcn">${act.length}</span></div><div class="tcsub">volume ${m$(actVol)} · click header to see deals</div>${teamGrid(byA)}<div class="tdlist" id="tt-act" style="display:none">${actList}</div></div>
+    <div class="teamcard"><div class="tch tctog" data-tt="cl"><span class="tct">Closed · 2026 YTD ▸</span><span class="tcn">${cl.length}</span></div><div class="tcsub">volume ${m$(clVol)} · click header to see deals</div>${teamGrid(byC)}<div class="tdlist" id="tt-cl" style="display:none">${clList}</div></div>
+  </div>`;
+  document.getElementById('g-team').innerHTML=h;
+  document.querySelectorAll('#g-team .tctog').forEach(tg=>tg.addEventListener('click',()=>{const el=document.getElementById('tt-'+tg.dataset.tt);el.style.display=el.style.display==='none'?'block':'none';}));
+  document.querySelectorAll('#g-team .tdl[data-open]').forEach(r=>r.addEventListener('click',()=>openDeal(+r.dataset.open)));
+}
+function openDeal(i){
+  const dt=document.querySelector('.mtab[data-v="deals"]'); if(dt)dt.click();
+  ['q','sideF','agentF','leadF'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const sf2=document.getElementById('statusF'); if(sf2)sf2.value='all';
+  const so=document.getElementById('sort'); if(so)so.value='close';
+  render();
+  setTimeout(()=>{const c=document.getElementById('deal-'+i);if(c){document.querySelectorAll('.deal.open').forEach(x=>x.classList.remove('open'));c.classList.add('open');c.scrollIntoView({behavior:'smooth',block:'center'});}},60);
+}
+function renderCap(){
+  const el=document.getElementById('g-cap');
+  el.innerHTML=`<div class="capf">
+    <div><label>Cap goal</label><input id="cap-g" value="${G.cap.goal||'$12,000'}"></div>
+    <div><label>Paid to date</label><input id="cap-p" value="${G.cap.paid||''}" placeholder="$0"></div>
+    <div><label>Remaining</label><input id="cap-r" readonly></div></div>
+    <div class="ytd" style="margin-bottom:4px"><span class="ytd-p" id="cap-pct">0%</span><div class="bar"><div class="barfill" id="cap-bar"></div></div></div>
+    <div class="ytd-meta" id="cap-sub"></div>`;
+  const pd=s=>parseFloat((s||'').replace(/[^0-9.]/g,''))||0,f=n=>'$'+n.toLocaleString();
+  function upd(){const g=pd(G.cap.goal)||12000,p=pd(G.cap.paid),r=Math.max(0,g-p),pc=Math.min(100,Math.round(p/g*100));
+    document.getElementById('cap-r').value=f(r);document.getElementById('cap-pct').textContent=pc+'%';document.getElementById('cap-bar').style.width=pc+'%';document.getElementById('cap-sub').textContent=`${f(p)} of ${f(g)} paid`;}
+  document.getElementById('cap-g').addEventListener('input',e=>{G.cap.goal=e.target.value;saveG();upd();});
+  document.getElementById('cap-p').addEventListener('input',e=>{G.cap.paid=e.target.value;saveG();upd();});
+  upd();
+}
+const ECY=["empty","red","black","green"];
+function renderElite(){const el=document.getElementById('g-elite');el.innerHTML='';
+  G.elite.forEach((s,i)=>{const b=document.createElement('div');b.className='ebox '+(s==='empty'?'':s);b.addEventListener('click',()=>{G.elite[i]=ECY[(ECY.indexOf(G.elite[i])+1)%4];saveG();renderElite();});el.appendChild(b);});}
+function renderLines(){['sellers','buyers'].forEach(k=>{const el=document.getElementById('g-'+k);el.innerHTML='';
+  G[k].forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder=k==='buyers'?'Buyer':'Seller – timing';inp.addEventListener('change',()=>{G[k][i]=inp.value;saveG();});el.appendChild(inp);});});}
+function renderVips(){const el=document.getElementById('g-vips');el.innerHTML='';
+  G.vips.forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder='—';inp.addEventListener('change',()=>{G.vips[i]=inp.value;saveG();});el.appendChild(inp);});}
+function renderRefs2(){['inbound','outbound'].forEach(t=>{const el=document.getElementById('g-'+t);el.innerHTML='';
+  G[t].forEach((r,i)=>{const row=document.createElement('div');row.className='refrow';
+    const n=document.createElement('input');n.value=r.name;n.placeholder=t==='inbound'?'Name / Source':'Name / Agent';n.addEventListener('change',()=>{G[t][i].name=n.value;saveG();});
+    const c=document.createElement('input');c.value=r.closing;c.placeholder='Close';c.addEventListener('change',()=>{G[t][i].closing=c.value;saveG();});
+    const ct=document.createElement('input');ct.value=r.contact;ct.placeholder='Last contact';ct.addEventListener('change',()=>{G[t][i].contact=ct.value;saveG();});
+    row.append(n,c,ct);el.appendChild(row);});});}
+document.querySelectorAll('.addln').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.k;G[k].push('');saveG();k==='vips'?renderVips():renderLines();}));
+document.querySelectorAll('.addref').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.k;G[k].push({name:'',closing:'',contact:''});saveG();renderRefs2();}));
+// ====================== LISTINGS TAB ======================
+// LST is loaded from the sheet's Listings tab in loadDeals. It used to be a
+// 17-row hardcoded LISTINGS_SEED saved into browser localStorage, which meant
+// John's dashboard edits and Lindsay's sheet edits never reached each other.
+const L_COL={status:"status",list:"list",price:"current",reduced:"last_price_cut",
+  pics:"pictures",signpost:"sign_post",sign:"sign",lockbox:"lockbox",lockcode:"lockbox_code",
+  title:"title_search",titleco:"title_company",sellers:"sellers",notes:"notes",
+  addr:"address",agent:"agent"};
+const STATUS_OPTS=["Exclusive","Delayed","Active","Active w/Offer","Withdrawn","Expired","Sold"];
+const PIC_OPTS=["Not Ordered","Ordered","Done"];
+const SIGNPOST_OPTS=["No","Ordered","Installed","Not Installed"];
+const LOCKBOX_OPTS=["None","Supra","Combo","Other"];
+const TITLE_OPTS=["No","Ordered","Done"];
+const SIGN_OPTS=["No","Yes"];
+function lopts(arr,cur){return arr.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('');}
+function lstColor(s){return {"Active":"b-green","Active w/Offer":"b-blue","Sold":"b-purple","Exclusive":"b-gray","Delayed":"b-amber","Withdrawn":"b-red","Expired":"b-red"}[s]||"b-gray";}
+function renderListings(){
+  const q=(document.getElementById('lq').value||'').toLowerCase(),sf=document.getElementById('lstatusF').value;
+  const rows=LST.map((l,i)=>({l,i})).filter(({l})=>(!q||(l.addr+l.agent+(l.sellers||'')).toLowerCase().includes(q))&&(!sf||l.status===sf));
+  const pD=s=>parseFloat((s||'').replace(/[^0-9.]/g,''))||0;
+  const tot=rows.reduce((a,{l})=>a+pD(l.price||l.list),0);
+  document.getElementById('lstats').innerHTML=`<b>${rows.length}</b> listing${rows.length!==1?'s':''} shown · total volume <b>${m$(tot)}</b>`;
+  document.getElementById('llist').innerHTML=rows.map(({l,i})=>{
+    const mine=l.agent==='John Reuter';
+    return `<div class="ldeal">
+      <div class="lrow">
+        <div class="lopen" data-li="${i}"><span class="addr">${(l.addr||'').split(',')[0]||'(new)'}</span><div class="sub2">${(l.addr||'').split(',').slice(1).join(',').trim()} <span class="badge ${lstColor(l.status)}">${l.status}</span></div></div>
+        <div><span class="${mine?'agent-mine':'agent-other'}">${(l.agent||'').split(' ')[0]}</span></div>
+        <div><select class="lsel lstatus" data-li="${i}" data-f="status">${lopts(STATUS_OPTS,l.status)}</select></div>
+        <div class="price"><input class="linp" data-li="${i}" data-f="list" value="${l.list||''}" placeholder="$"></div>
+        <div class="price"><input class="linp" data-li="${i}" data-f="price" value="${l.price||''}" placeholder="$"></div>
+        <div><input class="linp sm" data-li="${i}" data-f="reduced" value="${l.reduced||''}" placeholder="—"></div>
+        <div class="caret lopen" data-li="${i}">▶</div>
+      </div>
+      <div class="lbody"><div class="lgrid">
+        <div class="lkv"><span>Pictures</span><select class="lsel" data-li="${i}" data-f="pics">${lopts(['',...PIC_OPTS],l.pics)}</select></div>
+        <div class="lkv"><span>Sign Post</span><select class="lsel" data-li="${i}" data-f="signpost">${lopts(['',...SIGNPOST_OPTS],l.signpost)}</select></div>
+        <div class="lkv"><span>Sign</span><select class="lsel" data-li="${i}" data-f="sign">${lopts(['',...SIGN_OPTS],l.sign)}</select></div>
+        <div class="lkv"><span>Lockbox</span><select class="lsel" data-li="${i}" data-f="lockbox">${lopts(['',...LOCKBOX_OPTS],l.lockbox)}</select></div>
+        <div class="lkv"><span>Lockbox code</span><input class="linp" data-li="${i}" data-f="lockcode" value="${(l.lockcode||'').replace(/"/g,'&quot;')}" placeholder="code"></div>
+        <div class="lkv"><span>Title Search</span><select class="lsel" data-li="${i}" data-f="title">${lopts(['',...TITLE_OPTS],l.title)}</select></div>
+        <div class="lkv"><span>Title Company</span><input class="linp" data-li="${i}" data-f="titleco" value="${(l.titleco||'').replace(/"/g,'&quot;')}" placeholder="company"></div>
+        <div class="lkv"><span>Last price cut</span><input class="linp" data-li="${i}" data-f="reduced" value="${l.reduced||''}" placeholder="MM/DD"></div>
+        <div class="lkv full"><span>Sellers (names, email, phone)</span><input class="linp" data-li="${i}" data-f="sellers" value="${(l.sellers||'').replace(/"/g,'&quot;')}" placeholder="Name - email - phone"></div>
+        <div class="lkv full"><span>Address</span><input class="linp" data-li="${i}" data-f="addr" value="${(l.addr||'').replace(/"/g,'&quot;')}"></div>
+        <div class="lkv"><span>Agent</span><input class="linp" data-li="${i}" data-f="agent" value="${l.agent||''}"></div>
+        <div class="lkv full"><span>Notes</span><input class="linp" data-li="${i}" data-f="notes" value="${(l.notes||'').replace(/"/g,'&quot;')}"></div>
+        <div class="lkv"><span>Row</span><span class="sub2">${l.tab} · row ${l.rowNum}</span></div>
+      </div></div>
+    </div>`;
+  }).join('') || '<p class="sub2">No listings yet. Click "+ Add listing".</p>';
+  document.querySelectorAll('#llist .lopen').forEach(o=>o.addEventListener('click',e=>{e.stopPropagation();o.closest('.ldeal').classList.toggle('open');}));
+  document.querySelectorAll('#llist .lsel, #llist .linp').forEach(el=>{
+    el.addEventListener('click',e=>e.stopPropagation());
+    el.addEventListener('change',()=>{
+      const l=LST[+el.dataset.li],f=el.dataset.f,col=L_COL[f];
+      // Save against the key the row was read with, because editing the address
+      // changes that key. Update it afterwards so the next edit still matches.
+      const oldKey=l.key;
+      l[f]=el.value;
+      if(col) saveCell(l.tab,oldKey,{[col]:el.value});
+      if(f==='addr') l.key=el.value;
+      if(['status','addr','agent','price','list'].includes(f)) renderListings();
+    });
+  });
+}
+STATUS_OPTS.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;document.getElementById('lstatusF').appendChild(op);});
+document.getElementById('lstatusF').value="Active";
+['lq','lstatusF'].forEach(id=>document.getElementById(id).addEventListener('input',renderListings));
+// Adding and deleting listings happens in the sheet itself. The backend only
+// updates existing rows, and a button that looked like it added a listing but
+// did not would be worse than sending John to the one place that works.
+document.getElementById('laddbtn').addEventListener('click',()=>window.open(SHEET_URL,'_blank'));
+
+document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.mtab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');document.getElementById('view-'+t.dataset.v).classList.add('active');
+  if(t.dataset.v==='goals')renderGoals();
+  if(t.dataset.v==='listings')renderListings();
+}));
+
+// go live
+loadDeals();
+</script>
+</body>
+</html>
