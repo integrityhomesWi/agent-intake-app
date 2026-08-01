@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-11';
+var BUILD = 'sheets-13';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -45,7 +45,34 @@ var TAB_CLOSED = 'Closed 2026';
 // in the list IS the column position in the sheet, so inserting one in the
 // middle would silently shift every value after it into the wrong field.
 // Any change here must be recorded in SHEET-FORMAT-LOG.md.
-var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp','Offer Date','Financing Type','Home Sale Contingency','Possession Date','Possession Notes','Co-op Agent Company','Co-op Agent Email','Co-op Agent Phone','Earnest Money Holder','Home Inspector','HOA'];
+var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp','Offer Date','Financing Type','Home Sale Contingency','Possession Date','Possession Notes','Co-op Agent Company','Co-op Agent Email','Co-op Agent Phone','Earnest Money Holder','Home Inspector','HOA',
+  // Offer & Contract Timeline
+  'Counter-Offer Date','Amendment 1 Date','Amendment 1 Notes','Amendment 2 Date','Amendment 2 Notes','Amendment 3 Date','Amendment 3 Notes','Offer Written in Secondary Position','Time Frame to Rescind',
+  // Closing Details
+  'Closing Time','Closing Location','Title Commitment Due Date','Final Walkthrough Date','Final Walkthrough Time',
+  // Earnest Money (split from the legacy "Earnest Money" cycling cell above)
+  'Earnest Money Status','Earnest Money Due Date',
+  // Inspection (split from the legacy "Inspection" cycling cell above)
+  'Inspection Status','Inspection Due Date','Inspection Notes','Repairs Deadline',
+  // Radon (split from the legacy "Radon" cycling cell above)
+  'Radon Status','Radon Due Date','Radon Notes',
+  // Termite
+  'Termite Inspection Required','Termite Responsible Party',
+  // Well / Septic / Water (split from the legacy "Well/Septic" cell above)
+  'Septic Status','Septic Deadline','Well Status','Well Deadline','Water Status','Water Deadline','Septic/Well/Water Notes',
+  // Financing
+  'Amount Financed','Loan to Value','Interest Rate','Preapproval Deadline',
+  // Appraisal
+  'Appraisal Notes',
+  // Property Disclosures
+  'RECR Completed','RECR Date','RECR Items Disclosed Notes','Lead-Based Paint Disclosure Required','Lead-Based Paint Disclosure Received',
+  // Sale of Buyer's Property (Home Sale Contingency)
+  'Home Sale Contingency Closing Date','Home Sale Contingency Bump Notice Period','Home Sale Contingency Notes','Buyer\'s Property Listing Deadline','Buyer\'s Property Accepted-Offer Deadline',
+  // Condo
+  'Condo (Y/N)','Condo Doc Deadline',
+  // Special Contingencies (5 flexible slots)
+  'Special Contingency 1','Special Contingency 1 Deadline','Special Contingency 1 Notes','Special Contingency 2','Special Contingency 2 Deadline','Special Contingency 2 Notes','Special Contingency 3','Special Contingency 3 Deadline','Special Contingency 3 Notes','Special Contingency 4','Special Contingency 4 Deadline','Special Contingency 4 Notes','Special Contingency 5','Special Contingency 5 Deadline','Special Contingency 5 Notes'
+];
 var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp','List Date','Expiration Date','Included Items','Excluded Items','Condition Report Date','Year Built','Lead Paint Disclosure Status','Photo Link','Virtual Tour (Branded)','Virtual Tour (Unbranded)'];
 var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes','Lender Name','Lender Company','Lender Phone','Lender Email','Preapproval Expiration','Buyer Agency Signed Date','Buyer Agency Start Date','Buyer Agency End Date'];
 var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status','Commission','GCI'];
@@ -321,12 +348,13 @@ function converse_(data) {
     '- Never store a decline/non-answer phrase as a field\'s value under any circumstance, even if it is the only thing the agent said in response to that question.',
     '- Phone numbers, emails, dates, and dollar amounts should be recorded in a clean plain format (e.g. "$450,000", "608-669-4226").',
     '- spokenLine is read aloud by text-to-speech to the agent. Keep it brief and conversational, not written prose.',
+    '- Sound like a helpful colleague on a quick call, not a script. Vary your phrasing turn to turn - do not open every line with the same stock word ("Got it", "Great", "Perfect") every time. A short acknowledgment of what they just said is fine, but keep it natural and not repetitive across the conversation.',
     '',
     'Known so far (JSON): ' + JSON.stringify(know)
   ].join('\n');
 
   var payload = {
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-5',
     max_tokens: 512,
     system: system,
     messages: [{

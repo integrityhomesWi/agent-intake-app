@@ -32,6 +32,40 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-07-31 · build `sheets-13` · added 64 columns, full Active Transactions rebuild
+
+**Active Transactions**, appended after `HOA` (voice-dictated by John, cross-checked
+against an "Accepted Offer" field-list document, categories and exclusions
+confirmed one at a time):
+
+- Offer & Contract Timeline (9): Counter-Offer Date, Amendment 1/2/3 Date +
+  Notes, Offer Written in Secondary Position, Time Frame to Rescind
+- Closing Details (5): Closing Time, Closing Location, Title Commitment Due
+  Date, Final Walkthrough Date + Time
+- Earnest Money (2), Inspection (4), Radon (3): each split into a Status +
+  Due Date pair (plus Notes/Repairs Deadline for Inspection, Notes for
+  Radon). The legacy `Earnest Money` / `Inspection` / `Radon` columns are
+  left in place, unused going forward - not deleted, per the append-only
+  rule. Command Center's milestone-cycling UI still reads the legacy columns
+  today; rewiring it to the new split columns is deliberately deferred to a
+  single pass once all tracker column work is finished, not done per-field.
+- Termite (2), Well/Septic/Water (7 - split from the legacy `Well/Septic`
+  column the same way as above), Financing (4), Appraisal Notes (1),
+  Property Disclosures (5), Sale of Buyer's Property (5), Condo (2)
+- Special Contingencies (15): 5 flexible slots, each Contingency + Deadline
+  + Notes, replacing a rejected 20-named-contingency list from the source
+  document
+
+Deliberately excluded after review: HOA/Condo micro-deadlines beyond
+Condo (Y/N) + Doc Deadline, the Survey/Zoning/Rental section (commercial
+boilerplate, doesn't match this business), the Insurance section (not a
+recurring bottleneck), and all "pre-closing operational reminders" /
+"after-closing CRM follow-up" fields from the source doc - those are TC
+workflow/reminder tasks, not transaction data, and belong in a separate
+system, not this sheet.
+
+Active Transactions is now 98 columns (34 existing + 64 new).
+
 ### 2026-07-31 · build `sheets-11` · added 27 columns from the transaction-detail brainstorm
 
 **Active Transactions**, appended after `Co-op Comp`:
