@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-18';
+var BUILD = 'sheets-19';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -123,6 +123,9 @@ function rebuildCategorizedTab_(tabName, categories) {
   old.setName(archiveName);
 
   var fresh = ss.insertSheet(tabName, old.getIndex());
+  var totalCols = categories.reduce(function (sum, cat) { return sum + cat[1].length; }, 0);
+  var max = fresh.getMaxColumns();
+  if (max < totalCols) fresh.insertColumnsAfter(max, totalCols - max);
   var catRow = [], fieldRow = [], col = 1;
   var colors = ['#1c3d5a', '#2d5f8a']; // alternate two navy shades so adjacent categories are visually distinct
   categories.forEach(function (cat, i) {
