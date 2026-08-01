@@ -433,31 +433,118 @@ function msOf(v){
 }
 // Writing back: dashboard token -> the wording already used in the sheet, so
 // clicking a milestone does not turn a tidy "Done" into a lowercase "done".
-const MS_COL={em:"earnest_money",insp:"inspection",radon:"radon",appr:"appraisal",fin:"financing"};
+// Earnest Money/Inspection/Radon now have their own Status + Due Date columns
+// (sheets-14 split them out of one overloaded cell) - the milestone click
+// writes the Status column only; Due Date stays sheet-editable and is what
+// shows through whenever Status is blank. Appraisal/Financing never got that
+// split, so they still cycle their single legacy column.
+const MS_COL={em:"earnest_money_status",insp:"inspection_status",radon:"radon_status",appr:"appraisal",fin:"financing"};
 const MS_OUT={done:"Done",expired:"Expired",na:"N/A",waived:"Waived",received:"Rec'd",satisfied:"Satisfied","":""};
 const msWrite=v=>Object.prototype.hasOwnProperty.call(MS_OUT,v)?MS_OUT[v]:v;
+// Status wins when set; otherwise fall back to the Due Date column so the
+// milestone cell always shows something useful even before anyone has
+// touched Status.
+function pairMs(status,dueDate){ const s=msOf(status); return s || isoOf(dueDate) || ""; }
+
+// Mirrors slugCol_ in google-sheets-backend.gs - lets the frontend turn a
+// sheet column name (from the /schema endpoint) into the same key readTab_
+// already used to build each row, without keeping a second hand-typed map.
+function slugName(name){
+  return String(name).toLowerCase().replace(/[()$]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+// Category + field layout for each tab, straight from the backend's own
+// ACTIVE_CATEGORIES/LISTINGS_CATEGORIES/BUYERLEADS_CATEGORIES arrays (see
+// ?action=schema in google-sheets-backend.gs). Loaded once at startup so the
+// "everything else" detail sections below can show every column the sheet
+// actually has without a second, hand-typed copy of the field list.
+let SCHEMA={active:[],listings:[],buyerleads:[]};
+function loadSchema(){
+  const cb="__ihschema_"+Date.now();
+  window[cb]=function(res){
+    if(res&&res.active){ SCHEMA=res; render(); renderListings(); }
+    try{delete window[cb];}catch(e){}
+    if(s.parentNode)s.parentNode.removeChild(s);
+  };
+  const s=document.createElement('script');
+  s.src=SHEET_ENDPOINT+"?action=schema&callback="+cb+"&t="+Date.now();
+  document.head.appendChild(s);
+}
+// Fields already surfaced by name elsewhere in a deal's detail view (header
+// row, milestones, parties, timeline, financials) - skipped in the generic
+// "Full Details" dump below so nothing shows twice.
+const ACTIVE_DUMP_EXCLUDE=new Set(['address','side','agent','price','health','action_needed_flags','days_out',
+  'buyers','sellers','co_op_agent','home_inspector','offer_date','accepted','closing',
+  'counter_offer_date','amendment_1_date','amendment_1_notes','amendment_2_date','amendment_2_notes','amendment_3_date','amendment_3_notes',
+  'earnest_money','earnest_money_holder','earnest_money_status','earnest_money_due_date',
+  'inspection_status','inspection_due_date','radon_status','radon_due_date',
+  'septic_status','septic_deadline','well_status','well_deadline','water_status','water_deadline','septic_well_water_notes',
+  'appraisal','financing','lender','title_company','title_status']);
+// Renders every non-blank field from a category list as a labeled block,
+// skipping anything in `exclude`. Used so the ~60 columns added in the
+// tracker rebuild (contingencies, disclosures, condo/HOA, compensation,
+// closing specifics...) are glanceable here instead of only living in the
+// sheet, without hand-wiring each one.
+function fullDetailsHTML(raw,catList,exclude){
+  if(!raw||!catList||!catList.length) return '';
+  const blocks=[];
+  catList.forEach(cat=>{
+    const rows=cat[1].map(f=>{
+      const slug=slugName(f);
+      if(exclude.has(slug)) return null;
+      const v=raw[slug];
+      if(v==null) return null;
+      const s=String(v).trim();
+      if(!s) return null;
+      return `<div class="kv"><span class="k">${f}</span><span class="v">${s}</span></div>`;
+    }).filter(Boolean);
+    if(rows.length) blocks.push(`<div class="block"><h4>${cat[0]}</h4>${rows.join('')}</div>`);
+  });
+  return blocks.join('');
+}
 
 function adaptActive(r){
   const parties={},add=(k,v)=>{if(v&&String(v).trim())parties[k]=String(v).trim();};
   add("Buyer",r.buyers); add("Seller",r.sellers);
   add("Co-op agent",r.co_op_agent); add("Lender",r.lender); add("Title",r.title_company);
+  add("Inspector",r.home_inspector);
   const close=isoOf(r.closing),accept=isoOf(r.accepted),dates=[];
   if(accept)dates.push(["Acceptance",accept]);
   if(close)dates.push(["Closing",close]);
   const health=String(r.health||"").trim();
+  // Counter-offer/amendment dates + notes -> the "Counters & amendments"
+  // block, which used to always render empty because nothing filled it in.
+  const changes=[];
+  const cline=(label,dateField,noteField)=>{
+    const dt=isoOf(r[dateField]),nt=noteField?String(r[noteField]||'').trim():'';
+    if(!dt&&!nt) return;
+    changes.push(label+(dt?': '+mdl(dt):'')+(nt?' — '+nt:''));
+  };
+  cline('Counter-Offer','counter_offer_date',null);
+  cline('Amendment 1','amendment_1_date','amendment_1_notes');
+  cline('Amendment 2','amendment_2_date','amendment_2_notes');
+  cline('Amendment 3','amendment_3_date','amendment_3_notes');
   return {
     tab:r.tab, key:r.key, rowNum:r.rowNum,
     addr:r.address||"", side:r.side||"", owner:r.agent||"",
     price:numOf(r.price), close, accept,
     title:String(r.title_status||""),
-    ms:{em:msOf(r.earnest_money),insp:msOf(r.inspection),radon:msOf(r.radon),appr:msOf(r.appraisal),fin:msOf(r.financing)},
-    wellSeptic:msOf(r.well_septic), em:String(r.earnest_money||""),
+    ms:{
+      em:pairMs(r.earnest_money_status,r.earnest_money_due_date),
+      insp:pairMs(r.inspection_status,r.inspection_due_date),
+      radon:pairMs(r.radon_status,r.radon_due_date),
+      appr:msOf(r.appraisal), fin:msOf(r.financing)
+    },
+    emAmount:String(r.earnest_money||""), emHolder:String(r.earnest_money_holder||""),
+    septic:{status:String(r.septic_status||""),deadline:isoOf(r.septic_deadline)},
+    well:{status:String(r.well_status||""),deadline:isoOf(r.well_deadline)},
+    water:{status:String(r.water_status||""),deadline:isoOf(r.water_deadline)},
+    wswNotes:String(r.septic_well_water_notes||""),
     health, daysOut:r.days_out,
     flag:/^red$/i.test(health), flagNote:String(r.action_needed_flags||""),
     status:health?("Health: "+health):"",
-    parties, dates, changes:[], notes:"",
+    parties, dates, changes, notes:"",
     closed:false, cancelled:false, count:1, lead:null,
-    _file:r.tab+" · row "+r.rowNum
+    _file:r.tab+" · row "+r.rowNum, _raw:r
   };
 }
 function adaptClosed(r){
@@ -474,18 +561,36 @@ function adaptClosed(r){
     _file:r.tab+" · row "+r.rowNum
   };
 }
+// Latest of the 5 flexible Price Reduction date slots (sheets-15 replaced
+// the single "last price cut" column with 5 slots so more than one
+// reduction can be logged) - shown read-only in the compact row; edit any
+// of the 5 individually in the expanded detail.
+function latestReduction(r){
+  const ds=[1,2,3,4,5].map(n=>isoOf(r['price_reduction_'+n+'_date'])).filter(Boolean);
+  if(!ds.length) return "";
+  return ds.sort().slice(-1)[0];
+}
 function adaptListing(r){
   return {
     tab:r.tab, key:r.key, rowNum:r.rowNum,
     addr:r.address||"", agent:r.agent||"", status:String(r.status||""),
-    list:r.list?m$(numOf(r.list)):"", price:r.current?m$(numOf(r.current)):"",
-    reduced:String(r.last_price_cut||""),
-    pics:String(r.pictures||""), signpost:String(r.sign_post||""), sign:String(r.sign||""),
-    lockbox:String(r.lockbox||""), lockcode:String(r.lockbox_code||""),
-    title:String(r.title_search||""), titleco:String(r.title_company||""),
-    sellers:String(r.sellers||""), notes:String(r.notes||"")
+    list:r.list_price?m$(numOf(r.list_price)):"", price:r.current_price?m$(numOf(r.current_price)):"",
+    reduced:latestReduction(r),
+    notes:String(r.notes||""), _raw:r
   };
 }
+// Fields already shown in the compact row or handled specially - skipped in
+// the generic detail grid below.
+const LISTING_DUMP_EXCLUDE=new Set(['address','agent','status','list_price','current_price','notes']);
+// A handful of Listings fields are picklists, not free text - reuse the
+// same option lists the old hand-wired fields used, keyed by the column
+// slug so the generic grid below can tell a select from a plain input.
+const LISTING_SELECTS={
+  pictures_drone_video_status:['Not Ordered','Ordered','Done'],
+  sign_post_status:['No','Ordered','Installed','Not Installed'],
+  sign_status:['No','Yes'],
+  title_search_status:['No','Ordered','Done']
+};
 
 /* ---------- live load + save ---------- */
 function setLive(cls,msg){const b=document.getElementById('livebar');b.className='livebar '+cls;b.textContent=msg;if(cls==='ok')setTimeout(()=>{b.className='livebar';},2500);}
@@ -590,7 +695,7 @@ function stats(){
 
 function detail(d,i){
  const dz=v=>(v===0||v)?String(v):null;
- const fin=[["Sale price",d.price?m$(d.price):null],["Earnest money",d.em||null],["Well &amp; septic",d.wellSeptic||null],["Health",d.health||null],["Days to close",dz(d.daysOut)],["Owner / agent",d.owner],["Lead source",d.lead||null],["Status",d.status]].filter(r=>r[1]);
+ const fin=[["Sale price",d.price?m$(d.price):null],["Earnest money",d.emAmount||null],["EM holder",d.emHolder||null],["Health",d.health||null],["Days to close",dz(d.daysOut)],["Owner / agent",d.owner],["Lead source",d.lead||null],["Status",d.status]].filter(r=>r[1]);
  const finH=fin.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
  const tlH=(d.dates||[]).map(t=>`<div class="kv"><span class="k">${t[0]}</span><span class="v">${ISDATE(t[1])?mdl(t[1]):t[1]}</span></div>`).join('');
  const pH=Object.entries(d.parties||{}).map(([k,v])=>`<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
@@ -599,6 +704,10 @@ function detail(d,i){
  const cH=contact.length?`<div class="block"><h4>Contact</h4>${contact.map(r=>`<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join('')}</div>`:'';
  const noteH=d.notes?`<div class="block full"><h4>Notes</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.notes}</div></div>`:'';
  const flagH=d.flagNote?`<div class="block full"><h4>Action needed</h4><div class="sub2" style="font-size:13px;color:var(--ink)">${d.flagNote}</div></div>`:'';
+ const wswRows=[["Septic",d.septic],["Well",d.well],["Water",d.water]].filter(([,o])=>o&&(o.status||o.deadline))
+   .map(([label,o])=>`<div class="kv"><span class="k">${label}</span><span class="v">${[o.status,o.deadline?mdl(o.deadline):''].filter(Boolean).join(' · ')}</span></div>`).join('');
+ const wswH=(wswRows||d.wswNotes)?`<div class="block"><h4>Well / Septic / Water</h4>${wswRows}${d.wswNotes?`<div class="kv"><span class="k">Notes</span><span class="v">${d.wswNotes}</span></div>`:''}</div>`:'';
+ const dumpH=(d._raw&&d._raw.source==='active')?fullDetailsHTML(d._raw,SCHEMA.active,ACTIVE_DUMP_EXCLUDE):'';
  const reqH=AGENT_MODE?`<div class="block full reqbox">
    <h4 style="color:var(--navy)">Request a change</h4>
    <div class="reqrow">
@@ -611,12 +720,14 @@ function detail(d,i){
  return `<div class="grid">
    <div class="block"><h4>Financials</h4>${finH}</div>
    <div class="block"><h4>Timeline</h4>${tlH||'<div class="sub2">No dates yet</div>'}</div>
+   ${wswH}
    ${flagH}
    ${cH}
    ${pH?`<div class="block full"><h4>Parties</h4>${pH}</div>`:''}
    ${chH}
    ${noteH}
    <div class="block full"><h4>Where this lives</h4><div class="sub2">${d._file||''} of the IH Live Transaction Tracker. Edits here save straight back into that row.</div></div>
+   ${dumpH}
    ${reqH}
  </div>`;
 }
@@ -671,7 +782,7 @@ function render(){
    const order=["Sent","Waiting","received","done","na",""];
    const cur=(d.ms&&d.ms.em)||"";const idx=order.indexOf(cur);
    d.ms=d.ms||{}; d.ms.em=order[(idx+1)%order.length];
-   saveCell(d.tab,d.key,{earnest_money:msWrite(d.ms.em)});
+   saveCell(d.tab,d.key,{earnest_money_status:msWrite(d.ms.em)});
    render();
  }));
  // Title dropdown
@@ -860,21 +971,34 @@ document.querySelectorAll('.addref').forEach(b=>b.addEventListener('click',()=>{
 // LST is loaded from the sheet's Listings tab in loadDeals. It used to be a
 // 17-row hardcoded LISTINGS_SEED saved into browser localStorage, which meant
 // John's dashboard edits and Lindsay's sheet edits never reached each other.
-const L_COL={status:"status",list:"list",price:"current",reduced:"last_price_cut",
-  pics:"pictures",signpost:"sign_post",sign:"sign",lockbox:"lockbox",lockcode:"lockbox_code",
-  title:"title_search",titleco:"title_company",sellers:"sellers",notes:"notes",
-  addr:"address",agent:"agent"};
 const STATUS_OPTS=["Exclusive","Delayed","Active","Active w/Offer","Withdrawn","Expired","Sold"];
-const PIC_OPTS=["Not Ordered","Ordered","Done"];
-const SIGNPOST_OPTS=["No","Ordered","Installed","Not Installed"];
-const LOCKBOX_OPTS=["None","Supra","Combo","Other"];
-const TITLE_OPTS=["No","Ordered","Done"];
-const SIGN_OPTS=["No","Yes"];
 function lopts(arr,cur){return arr.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('');}
 function lstColor(s){return {"Active":"b-green","Active w/Offer":"b-blue","Sold":"b-purple","Exclusive":"b-gray","Delayed":"b-amber","Withdrawn":"b-red","Expired":"b-red"}[s]||"b-gray";}
+// Everything except Address/Agent/Status/List/Current price/Notes (special-
+// cased above them, since Address doubles as the row key and Notes gets its
+// own full-width box) is rendered generically from SCHEMA.listings - a
+// select where we know the picklist (LISTING_SELECTS), a text input
+// otherwise. Keeps the ~50-column Listings tab editable here without
+// hand-wiring each field.
+function listingFieldsHTML(l,i){
+  if(!SCHEMA.listings||!SCHEMA.listings.length) return '';
+  const blocks=[];
+  SCHEMA.listings.forEach(cat=>{
+    cat[1].forEach(f=>{
+      const slug=slugName(f);
+      if(LISTING_DUMP_EXCLUDE.has(slug)) return;
+      const v=(l._raw&&l._raw[slug]!=null)?String(l._raw[slug]):"";
+      const ctl=LISTING_SELECTS[slug]
+        ?`<select class="lsel" data-li="${i}" data-f="${slug}">${lopts(['',...LISTING_SELECTS[slug]],v)}</select>`
+        :`<input class="linp" data-li="${i}" data-f="${slug}" value="${v.replace(/"/g,'&quot;')}" placeholder="—">`;
+      blocks.push(`<div class="lkv"><span>${f}</span>${ctl}</div>`);
+    });
+  });
+  return blocks.join('');
+}
 function renderListings(){
   const q=(document.getElementById('lq').value||'').toLowerCase(),sf=document.getElementById('lstatusF').value;
-  const rows=LST.map((l,i)=>({l,i})).filter(({l})=>(!q||(l.addr+l.agent+(l.sellers||'')).toLowerCase().includes(q))&&(!sf||l.status===sf));
+  const rows=LST.map((l,i)=>({l,i})).filter(({l})=>(!q||(l.addr+l.agent).toLowerCase().includes(q))&&(!sf||l.status===sf));
   const pD=s=>parseFloat((s||'').replace(/[^0-9.]/g,''))||0;
   const tot=rows.reduce((a,{l})=>a+pD(l.price||l.list),0);
   document.getElementById('lstats').innerHTML=`<b>${rows.length}</b> listing${rows.length!==1?'s':''} shown · total volume <b>${m$(tot)}</b>`;
@@ -885,23 +1009,15 @@ function renderListings(){
         <div class="lopen" data-li="${i}"><span class="addr">${(l.addr||'').split(',')[0]||'(new)'}</span><div class="sub2">${(l.addr||'').split(',').slice(1).join(',').trim()} <span class="badge ${lstColor(l.status)}">${l.status}</span></div></div>
         <div><span class="${mine?'agent-mine':'agent-other'}">${(l.agent||'').split(' ')[0]}</span></div>
         <div><select class="lsel lstatus" data-li="${i}" data-f="status">${lopts(STATUS_OPTS,l.status)}</select></div>
-        <div class="price"><input class="linp" data-li="${i}" data-f="list" value="${l.list||''}" placeholder="$"></div>
-        <div class="price"><input class="linp" data-li="${i}" data-f="price" value="${l.price||''}" placeholder="$"></div>
-        <div><input class="linp sm" data-li="${i}" data-f="reduced" value="${l.reduced||''}" placeholder="—"></div>
+        <div class="price"><input class="linp" data-li="${i}" data-f="list_price" value="${l.list||''}" placeholder="$"></div>
+        <div class="price"><input class="linp" data-li="${i}" data-f="current_price" value="${l.price||''}" placeholder="$"></div>
+        <div><span class="sub2">${l.reduced?mdl(l.reduced):'—'}</span></div>
         <div class="caret lopen" data-li="${i}">▶</div>
       </div>
       <div class="lbody"><div class="lgrid">
-        <div class="lkv"><span>Pictures</span><select class="lsel" data-li="${i}" data-f="pics">${lopts(['',...PIC_OPTS],l.pics)}</select></div>
-        <div class="lkv"><span>Sign Post</span><select class="lsel" data-li="${i}" data-f="signpost">${lopts(['',...SIGNPOST_OPTS],l.signpost)}</select></div>
-        <div class="lkv"><span>Sign</span><select class="lsel" data-li="${i}" data-f="sign">${lopts(['',...SIGN_OPTS],l.sign)}</select></div>
-        <div class="lkv"><span>Lockbox</span><select class="lsel" data-li="${i}" data-f="lockbox">${lopts(['',...LOCKBOX_OPTS],l.lockbox)}</select></div>
-        <div class="lkv"><span>Lockbox code</span><input class="linp" data-li="${i}" data-f="lockcode" value="${(l.lockcode||'').replace(/"/g,'&quot;')}" placeholder="code"></div>
-        <div class="lkv"><span>Title Search</span><select class="lsel" data-li="${i}" data-f="title">${lopts(['',...TITLE_OPTS],l.title)}</select></div>
-        <div class="lkv"><span>Title Company</span><input class="linp" data-li="${i}" data-f="titleco" value="${(l.titleco||'').replace(/"/g,'&quot;')}" placeholder="company"></div>
-        <div class="lkv"><span>Last price cut</span><input class="linp" data-li="${i}" data-f="reduced" value="${l.reduced||''}" placeholder="MM/DD"></div>
-        <div class="lkv full"><span>Sellers (names, email, phone)</span><input class="linp" data-li="${i}" data-f="sellers" value="${(l.sellers||'').replace(/"/g,'&quot;')}" placeholder="Name - email - phone"></div>
-        <div class="lkv full"><span>Address</span><input class="linp" data-li="${i}" data-f="addr" value="${(l.addr||'').replace(/"/g,'&quot;')}"></div>
+        <div class="lkv full"><span>Address</span><input class="linp" data-li="${i}" data-f="address" value="${(l.addr||'').replace(/"/g,'&quot;')}"></div>
         <div class="lkv"><span>Agent</span><input class="linp" data-li="${i}" data-f="agent" value="${l.agent||''}"></div>
+        ${listingFieldsHTML(l,i)}
         <div class="lkv full"><span>Notes</span><input class="linp" data-li="${i}" data-f="notes" value="${(l.notes||'').replace(/"/g,'&quot;')}"></div>
         <div class="lkv"><span>Row</span><span class="sub2">${l.tab} · row ${l.rowNum}</span></div>
         ${AGENT_MODE?`<div class="lkv full reqbox">
@@ -921,14 +1037,22 @@ function renderListings(){
   document.querySelectorAll('#llist .lsel, #llist .linp').forEach(el=>{
     el.addEventListener('click',e=>e.stopPropagation());
     el.addEventListener('change',()=>{
-      const l=LST[+el.dataset.li],f=el.dataset.f,col=L_COL[f];
-      // Save against the key the row was read with, because editing the address
-      // changes that key. Update it afterwards so the next edit still matches.
+      const l=LST[+el.dataset.li],f=el.dataset.f;
+      // data-f is already the sheet column slug (schema-driven fields) or
+      // one of the three row-header slugs (status/list_price/current_price)
+      // - saveField_ on the backend matches update keys by that same slug,
+      // so no separate name-mapping table is needed here any more.
       const oldKey=l.key;
-      l[f]=el.value;
-      if(col) saveCell(l.tab,oldKey,{[col]:el.value});
-      if(f==='addr') l.key=el.value;
-      if(['status','addr','agent','price','list'].includes(f)) renderListings();
+      if(f==='status')l.status=el.value;
+      else if(f==='list_price')l.list=el.value;
+      else if(f==='current_price')l.price=el.value;
+      else if(f==='address')l.addr=el.value;
+      else if(f==='agent')l.agent=el.value;
+      else if(f==='notes')l.notes=el.value;
+      if(l._raw)l._raw[f]=el.value;
+      saveCell(l.tab,oldKey,{[f]:el.value});
+      if(f==='address')l.key=el.value;
+      if(['status','address','agent','list_price','current_price'].includes(f)) renderListings();
     });
   });
 }
@@ -950,6 +1074,7 @@ document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
 
 // go live
 loadDeals();
+loadSchema();
 </script>
 </body>
 </html>
