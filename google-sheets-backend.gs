@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-19';
+var BUILD = 'sheets-20';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -141,7 +141,6 @@ function rebuildCategorizedTab_(tabName, categories) {
   fresh.getRange(2, 1, 1, fieldRow.length).setValues([fieldRow]);
   fresh.getRange(2, 1, 1, fieldRow.length).setFontWeight('bold');
   fresh.setFrozenRows(2);
-  fresh.setFrozenColumns(1);
   Logger.log('Rebuilt "' + tabName + '". Old data archived in "' + archiveName + '". New tab is empty with ' + fieldRow.length + ' columns in ' + categories.length + ' categories.');
 }
 // No trailing underscore on these three - Apps Script's Run dropdown hides
