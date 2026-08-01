@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-14';
+var BUILD = 'sheets-15';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -71,33 +71,61 @@ var ACTIVE_CATEGORIES = [
   ['Compensation', ['Commission','Co-op Comp']]
 ];
 var COLS_ACTIVE = ACTIVE_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
-var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp','List Date','Expiration Date','Included Items','Excluded Items','Condition Report Date','Year Built','Lead Paint Disclosure Status','Photo Link','Virtual Tour (Branded)','Virtual Tour (Unbranded)'];
-var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes','Lender Name','Lender Company','Lender Phone','Lender Email','Preapproval Expiration','Buyer Agency Signed Date','Buyer Agency Start Date','Buyer Agency End Date'];
+
+// Same pattern as ACTIVE_CATEGORIES above: single source of truth, COLS_
+// arrays are just the flattened form. Buyer 1 Name is first (the row key,
+// same role Address plays for Active Transactions/Listings) since the old
+// single "Client Name(s)" field is retired in favor of separate Buyer 1/2
+// contact fields.
+var BUYERLEADS_CATEGORIES = [
+  ['Buyers', ['Buyer 1 Name','Buyer 1 Phone','Buyer 1 Email','Buyer 2 Name','Buyer 2 Phone','Buyer 2 Email']],
+  ['Overview', ['Agent','Date Received']],
+  ['Search Criteria', ['Price Range']],
+  ['Financing', ['Pre-Approval Status','Lender Name','Lender Company','Lender Phone','Lender Email','Pre-Approval Deadline']],
+  ['Agreements', ['Pre-Agency Showing Agreement','Pre-Agency Showing Agreement Date','Buyer Agency Start','Buyer Agency End']],
+  ['Compensation', ['Commission','Additional Fees','Referral Fee','Referral Name','Referral Phone','Referral Email','Referral Amount']],
+  ['Real Broker Compliance', ['Affiliated Business Agreement Completed','Consumer Choice & Referral Completed','Right to Negotiate Commission']],
+  ['Notes', ['Notes']]
+];
+var COLS_BUYERLEADS = BUYERLEADS_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
+
+var LISTINGS_CATEGORIES = [
+  ['Property & Sellers', ['Address','Seller 1 Name','Seller 1 Phone','Seller 1 Email','Seller 2 Name','Seller 2 Phone','Seller 2 Email']],
+  ['Listing Status', ['Status','List Date','Expiration Date','List Price','Current Price','Included Items','Excluded Items']],
+  ['Media', ['Pictures/Drone/Video Status','Pictures/Drone/Video Completion ETA','Pictures/Drone/Video Folder Link','Virtual Tour Link']],
+  ['Signage & Access', ['Sign Post Status','Sign Status','Access Type','Supra Serial #']],
+  ['Title', ['Title Search Status','Title Company','Title Company Phone','Title Company Email']],
+  ['Disclosures', ['Lead-Based Paint Status','RECR Status','Seller Refusal RECR Status']],
+  ['Price Reductions', ['Price Reduction 1','Price Reduction 1 Date','Price Reduction 2','Price Reduction 2 Date','Price Reduction 3','Price Reduction 3 Date','Price Reduction 4','Price Reduction 4 Date','Price Reduction 5','Price Reduction 5 Date']],
+  ['Compensation', ['Listing Commission','Seller Commission to Others','Additional Fees','Referral Fee','Referral Name','Referral Phone','Referral Email','Referral Amount']],
+  ['Real Broker Compliance', ['Affiliated Business Agreement Completed','Consumer Choice & Referral Completed','Right to Negotiate Commission']]
+];
+var COLS_LISTINGS = LISTINGS_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
+
 var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status','Commission','GCI'];
 
-/* ---------------- ONE-TIME SETUP: rebuild Active Transactions ---------------- */
-// Run this once manually from the Apps Script editor (select
-// rebuildActiveTransactions_ in the function dropdown, click Run), then
-// delete this function. It is not called from doGet/doPost. It archives the
-// current "Active Transactions" tab (renamed, data untouched) and creates a
-// fresh, empty "Active Transactions" tab with the 98-column layout grouped
-// into a colored category header row above the real field-name row, plus
-// collapsible column groups per category. Refuses to run twice - if an
-// archive already exists, it stops rather than overwriting it.
-function rebuildActiveTransactions_() {
+/* ---------------- ONE-TIME SETUP: rebuild tabs into categorized layouts ---------------- */
+// Run these once manually from the Apps Script editor (select the function in
+// the dropdown, click Run), then delete them. Not called from doGet/doPost.
+// Each archives the existing tab (renamed, data untouched) and creates a
+// fresh, empty tab in its place with a colored merged category header row
+// above the real field-name row, plus collapsible column groups per
+// category. Refuses to run twice - if an archive already exists, it stops
+// rather than overwriting it.
+function rebuildCategorizedTab_(tabName, categories) {
   var ss = SpreadsheetApp.openById(SHEET_ID);
-  var archiveName = 'Active Transactions (Archive)';
+  var archiveName = tabName + ' (Archive)';
   if (ss.getSheetByName(archiveName)) {
     throw new Error('Archive already exists - already ran this once. Delete "' + archiveName + '" first if you really want to run it again.');
   }
-  var old = ss.getSheetByName(TAB_ACTIVE);
-  if (!old) throw new Error('No "' + TAB_ACTIVE + '" tab found.');
+  var old = ss.getSheetByName(tabName);
+  if (!old) throw new Error('No "' + tabName + '" tab found.');
   old.setName(archiveName);
 
-  var fresh = ss.insertSheet(TAB_ACTIVE, ss.getSheetIndex(old));
+  var fresh = ss.insertSheet(tabName, ss.getSheetIndex(old));
   var catRow = [], fieldRow = [], col = 1;
   var colors = ['#1c3d5a', '#2d5f8a']; // alternate two navy shades so adjacent categories are visually distinct
-  ACTIVE_CATEGORIES.forEach(function (cat, i) {
+  categories.forEach(function (cat, i) {
     var name = cat[0], cols = cat[1];
     for (var c = 0; c < cols.length; c++) { catRow.push(c === 0 ? name : ''); fieldRow.push(cols[c]); }
     var startCol = col, span = cols.length;
@@ -111,8 +139,11 @@ function rebuildActiveTransactions_() {
   fresh.getRange(2, 1, 1, fieldRow.length).setFontWeight('bold');
   fresh.setFrozenRows(2);
   fresh.setFrozenColumns(1);
-  Logger.log('Rebuilt. Old data archived in "' + archiveName + '". New "' + TAB_ACTIVE + '" is empty with ' + fieldRow.length + ' columns in ' + ACTIVE_CATEGORIES.length + ' categories.');
+  Logger.log('Rebuilt "' + tabName + '". Old data archived in "' + archiveName + '". New tab is empty with ' + fieldRow.length + ' columns in ' + categories.length + ' categories.');
 }
+function rebuildActiveTransactions_() { rebuildCategorizedTab_(TAB_ACTIVE, ACTIVE_CATEGORIES); }
+function rebuildBuyerLeads_() { rebuildCategorizedTab_(TAB_BUYERLEADS, BUYERLEADS_CATEGORIES); }
+function rebuildListings_() { rebuildCategorizedTab_(TAB_LISTINGS, LISTINGS_CATEGORIES); }
 
 /* ---------------- entry points ---------------- */
 

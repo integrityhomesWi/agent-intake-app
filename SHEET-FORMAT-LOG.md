@@ -32,6 +32,40 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-07-31 · build `sheets-15` · Buyer Leads and Listings rebuilt the same way as Active Transactions
+
+Same treatment as the sheets-14 Active Transactions rebuild, extended to the
+other two tabs John dictated full field lists for. `rebuildCategorizedTab_()`
+replaces the three separate rebuild functions with one shared helper (archive
+old tab, build fresh categorized tab, both call sites just pass a tab name +
+category array).
+
+**Buyer Leads** -> `BUYERLEADS_CATEGORIES` (8 categories, 30 columns): Buyers
+(Buyer 1/2 Name+Phone+Email, replacing the old single "Client Name(s)" /
+"Best Phone" / "Email" fields), Overview (Agent, Date Received - kept from
+the old tab since the app needs Agent for routing), Search Criteria (Price
+Range), Financing, Agreements, Compensation, Real Broker Compliance, Notes.
+Buyer 1 Name is column A (the row key), replacing Client Name(s) in that
+role.
+
+**Listings** -> `LISTINGS_CATEGORIES` (9 categories, 50 columns): Property &
+Sellers (Address stays column A/the row key; Seller 1/2 Name+Phone+Email
+replacing the single free-text "Sellers" field), Listing Status, Media,
+Signage & Access, Title, Disclosures (includes the new "Seller Refusal RECR
+Status" - tracks the separate refusal document required when a seller
+declines to complete the standard RECR), Price Reductions (5 flexible
+slots), Compensation, Real Broker Compliance.
+
+Both archived tabs (`Buyer Leads (Archive)`, `Listings (Archive)`) keep the
+old data untouched, same as Active Transactions - re-entry into the new
+tabs is separate work, not part of this structural change.
+
+Not yet deployed - built and verified locally (column counts, no
+duplicates, correct row-key column) per John's instruction to keep working
+in one sitting rather than deploy after every change; deploy happens once
+everything (Active Transactions + Buyer Leads + Listings + the deferred
+Command Center rewire) is finished.
+
 ### 2026-07-31 · build `sheets-14` · Active Transactions rebuilt into a fresh categorized tab
 
 The flat sheets-13 layout (98 columns, one long row) was hard to read as a
