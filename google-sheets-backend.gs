@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-15';
+var BUILD = 'sheets-16';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -47,7 +47,7 @@ var TAB_CLOSED = 'Closed 2026';
 // Any change here must be recorded in SHEET-FORMAT-LOG.md.
 //
 // ACTIVE_CATEGORIES is the single source of truth for Active Transactions:
-// COLS_ACTIVE below is just this flattened, and rebuildActiveTransactions_()
+// COLS_ACTIVE below is just this flattened, and rebuildActiveTransactions()
 // uses the category names/spans directly to draw the grouped header row. The
 // two can never drift apart because one is derived from the other.
 var ACTIVE_CATEGORIES = [
@@ -141,9 +141,12 @@ function rebuildCategorizedTab_(tabName, categories) {
   fresh.setFrozenColumns(1);
   Logger.log('Rebuilt "' + tabName + '". Old data archived in "' + archiveName + '". New tab is empty with ' + fieldRow.length + ' columns in ' + categories.length + ' categories.');
 }
-function rebuildActiveTransactions_() { rebuildCategorizedTab_(TAB_ACTIVE, ACTIVE_CATEGORIES); }
-function rebuildBuyerLeads_() { rebuildCategorizedTab_(TAB_BUYERLEADS, BUYERLEADS_CATEGORIES); }
-function rebuildListings_() { rebuildCategorizedTab_(TAB_LISTINGS, LISTINGS_CATEGORIES); }
+// No trailing underscore on these three - Apps Script's Run dropdown hides
+// underscore-suffixed "private" functions, and these specifically need to
+// be selectable there to run manually.
+function rebuildActiveTransactions() { rebuildCategorizedTab_(TAB_ACTIVE, ACTIVE_CATEGORIES); }
+function rebuildBuyerLeads() { rebuildCategorizedTab_(TAB_BUYERLEADS, BUYERLEADS_CATEGORIES); }
+function rebuildListings() { rebuildCategorizedTab_(TAB_LISTINGS, LISTINGS_CATEGORIES); }
 
 /* ---------------- entry points ---------------- */
 
