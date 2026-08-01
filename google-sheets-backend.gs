@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-16';
+var BUILD = 'sheets-17';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -65,7 +65,7 @@ var ACTIVE_CATEGORIES = [
   ['Title', ['Title Company','Title Status','Title Commitment Due Date']],
   ['Property Disclosures', ['RECR Completed','RECR Date','RECR Items Disclosed Notes','Lead-Based Paint Disclosure Required','Lead-Based Paint Disclosure Received']],
   ['Condo / HOA', ['HOA','Condo (Y/N)','Condo Doc Deadline']],
-  ['Sale of Buyer\'s Property', ['Home Sale Contingency','Home Sale Contingency Closing Date','Home Sale Contingency Bump Notice Period','Home Sale Contingency Notes','Buyer\'s Property Listing Deadline','Buyer\'s Property Accepted-Offer Deadline']],
+  ['Sale of Buyers Property', ['Home Sale Contingency','Home Sale Contingency Closing Date','Home Sale Contingency Bump Notice Period','Home Sale Contingency Notes','Buyers Property Listing Deadline','Buyers Property Accepted-Offer Deadline']],
   ['Special Contingencies', ['Special Contingency 1','Special Contingency 1 Deadline','Special Contingency 1 Notes','Special Contingency 2','Special Contingency 2 Deadline','Special Contingency 2 Notes','Special Contingency 3','Special Contingency 3 Deadline','Special Contingency 3 Notes','Special Contingency 4','Special Contingency 4 Deadline','Special Contingency 4 Notes','Special Contingency 5','Special Contingency 5 Deadline','Special Contingency 5 Notes']],
   ['Closing', ['Closing','Closing Time','Closing Location','Final Walkthrough Date','Final Walkthrough Time','Possession Date','Possession Notes']],
   ['Compensation', ['Commission','Co-op Comp']]
@@ -415,8 +415,8 @@ function converse_(data) {
     '- Merge new information with what is already known below; do not erase a known value unless the agent clearly corrected it.',
     '- If every required field is filled, set done=true and spokenLine should be one short warm confirmation sentence.',
     '- If required fields are still missing, set done=false, and spokenLine should be ONE short natural spoken question about a single missing required field - never a list of multiple questions.',
-    '- If the agent\'s answer is not an actual value for the field you asked about - e.g. "skip", "not sure", "I don\'t know", "I don\'t have it", "don\'t have that", "none", "no idea", or anything else that declines or defers rather than answering - do NOT put that phrase into the field. Leave it out of fields entirely (so it stays missing) and move on to a different missing field next turn.',
-    '- Never store a decline/non-answer phrase as a field\'s value under any circumstance, even if it is the only thing the agent said in response to that question.',
+    '- If the agent answer is not an actual value for the field you asked about - e.g. "skip", "not sure", "I do not know", "I do not have it", "do not have that", "none", "no idea", or anything else that declines or defers rather than answering - do NOT put that phrase into the field. Leave it out of fields entirely (so it stays missing) and move on to a different missing field next turn.',
+    '- Never store a decline or non-answer phrase as a field value under any circumstance, even if it is the only thing the agent said in response to that question.',
     '- Phone numbers, emails, dates, and dollar amounts should be recorded in a clean plain format (e.g. "$450,000", "608-669-4226").',
     '- spokenLine is read aloud by text-to-speech to the agent. Keep it brief and conversational, not written prose.',
     '- Sound like a helpful colleague on a quick call, not a script. Vary your phrasing turn to turn - do not open every line with the same stock word ("Got it", "Great", "Perfect") every time. A short acknowledgment of what they just said is fine, but keep it natural and not repetitive across the conversation.',
