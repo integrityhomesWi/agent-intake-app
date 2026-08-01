@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-13';
+var BUILD = 'sheets-14';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -45,37 +45,74 @@ var TAB_CLOSED = 'Closed 2026';
 // in the list IS the column position in the sheet, so inserting one in the
 // middle would silently shift every value after it into the wrong field.
 // Any change here must be recorded in SHEET-FORMAT-LOG.md.
-var COLS_ACTIVE = ['Address','Side','Agent','Price','Accepted','Earnest Money','Inspection','Radon','Well/Septic','Appraisal','Financing','Title Status','Closing','Days Out','Health','Action Needed / Flags','Buyer(s)','Seller(s)','Co-op Agent','Lender','Title Company','Commission','Co-op Comp','Offer Date','Financing Type','Home Sale Contingency','Possession Date','Possession Notes','Co-op Agent Company','Co-op Agent Email','Co-op Agent Phone','Earnest Money Holder','Home Inspector','HOA',
-  // Offer & Contract Timeline
-  'Counter-Offer Date','Amendment 1 Date','Amendment 1 Notes','Amendment 2 Date','Amendment 2 Notes','Amendment 3 Date','Amendment 3 Notes','Offer Written in Secondary Position','Time Frame to Rescind',
-  // Closing Details
-  'Closing Time','Closing Location','Title Commitment Due Date','Final Walkthrough Date','Final Walkthrough Time',
-  // Earnest Money (split from the legacy "Earnest Money" cycling cell above)
-  'Earnest Money Status','Earnest Money Due Date',
-  // Inspection (split from the legacy "Inspection" cycling cell above)
-  'Inspection Status','Inspection Due Date','Inspection Notes','Repairs Deadline',
-  // Radon (split from the legacy "Radon" cycling cell above)
-  'Radon Status','Radon Due Date','Radon Notes',
-  // Termite
-  'Termite Inspection Required','Termite Responsible Party',
-  // Well / Septic / Water (split from the legacy "Well/Septic" cell above)
-  'Septic Status','Septic Deadline','Well Status','Well Deadline','Water Status','Water Deadline','Septic/Well/Water Notes',
-  // Financing
-  'Amount Financed','Loan to Value','Interest Rate','Preapproval Deadline',
-  // Appraisal
-  'Appraisal Notes',
-  // Property Disclosures
-  'RECR Completed','RECR Date','RECR Items Disclosed Notes','Lead-Based Paint Disclosure Required','Lead-Based Paint Disclosure Received',
-  // Sale of Buyer's Property (Home Sale Contingency)
-  'Home Sale Contingency Closing Date','Home Sale Contingency Bump Notice Period','Home Sale Contingency Notes','Buyer\'s Property Listing Deadline','Buyer\'s Property Accepted-Offer Deadline',
-  // Condo
-  'Condo (Y/N)','Condo Doc Deadline',
-  // Special Contingencies (5 flexible slots)
-  'Special Contingency 1','Special Contingency 1 Deadline','Special Contingency 1 Notes','Special Contingency 2','Special Contingency 2 Deadline','Special Contingency 2 Notes','Special Contingency 3','Special Contingency 3 Deadline','Special Contingency 3 Notes','Special Contingency 4','Special Contingency 4 Deadline','Special Contingency 4 Notes','Special Contingency 5','Special Contingency 5 Deadline','Special Contingency 5 Notes'
+//
+// ACTIVE_CATEGORIES is the single source of truth for Active Transactions:
+// COLS_ACTIVE below is just this flattened, and rebuildActiveTransactions_()
+// uses the category names/spans directly to draw the grouped header row. The
+// two can never drift apart because one is derived from the other.
+var ACTIVE_CATEGORIES = [
+  ['Overview', ['Address','Side','Agent','Price','Health','Action Needed / Flags','Days Out']],
+  ['Buyer & Seller', ['Buyer(s)','Seller(s)']],
+  ['Co-op Agent', ['Co-op Agent','Co-op Agent Company','Co-op Agent Email','Co-op Agent Phone']],
+  ['Offer & Contract', ['Offer Date','Accepted','Counter-Offer Date','Amendment 1 Date','Amendment 1 Notes','Amendment 2 Date','Amendment 2 Notes','Amendment 3 Date','Amendment 3 Notes','Offer Written in Secondary Position','Time Frame to Rescind']],
+  ['Earnest Money', ['Earnest Money','Earnest Money Holder','Earnest Money Status','Earnest Money Due Date']],
+  ['Inspection', ['Inspection','Home Inspector','Inspection Status','Inspection Due Date','Inspection Notes','Repairs Deadline']],
+  ['Radon', ['Radon','Radon Status','Radon Due Date','Radon Notes']],
+  ['Termite', ['Termite Inspection Required','Termite Responsible Party']],
+  ['Well / Septic / Water', ['Well/Septic','Septic Status','Septic Deadline','Well Status','Well Deadline','Water Status','Water Deadline','Septic/Well/Water Notes']],
+  ['Appraisal', ['Appraisal','Appraisal Notes']],
+  ['Financing', ['Financing','Financing Type','Lender','Amount Financed','Loan to Value','Interest Rate','Preapproval Deadline']],
+  ['Title', ['Title Company','Title Status','Title Commitment Due Date']],
+  ['Property Disclosures', ['RECR Completed','RECR Date','RECR Items Disclosed Notes','Lead-Based Paint Disclosure Required','Lead-Based Paint Disclosure Received']],
+  ['Condo / HOA', ['HOA','Condo (Y/N)','Condo Doc Deadline']],
+  ['Sale of Buyer\'s Property', ['Home Sale Contingency','Home Sale Contingency Closing Date','Home Sale Contingency Bump Notice Period','Home Sale Contingency Notes','Buyer\'s Property Listing Deadline','Buyer\'s Property Accepted-Offer Deadline']],
+  ['Special Contingencies', ['Special Contingency 1','Special Contingency 1 Deadline','Special Contingency 1 Notes','Special Contingency 2','Special Contingency 2 Deadline','Special Contingency 2 Notes','Special Contingency 3','Special Contingency 3 Deadline','Special Contingency 3 Notes','Special Contingency 4','Special Contingency 4 Deadline','Special Contingency 4 Notes','Special Contingency 5','Special Contingency 5 Deadline','Special Contingency 5 Notes']],
+  ['Closing', ['Closing','Closing Time','Closing Location','Final Walkthrough Date','Final Walkthrough Time','Possession Date','Possession Notes']],
+  ['Compensation', ['Commission','Co-op Comp']]
 ];
+var COLS_ACTIVE = ACTIVE_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
 var COLS_LISTINGS = ['Address','Agent','Status','List $','Current $','Last Price Cut','Pictures','Sign Post','Sign','Lockbox','Lockbox Code','Title Search','Title Company','Sellers','Notes','Commission','Co-op Comp','List Date','Expiration Date','Included Items','Excluded Items','Condition Report Date','Year Built','Lead Paint Disclosure Status','Photo Link','Virtual Tour (Branded)','Virtual Tour (Unbranded)'];
 var COLS_BUYERLEADS = ['Client Name(s)','Best Phone','Email','Pre-Approval','Price Range','Areas / Must-Haves','Agent','Date Received','Notes','Lender Name','Lender Company','Lender Phone','Lender Email','Preapproval Expiration','Buyer Agency Signed Date','Buyer Agency Start Date','Buyer Agency End Date'];
 var COLS_CLOSED = ['Address','Agent','Side','Closed','Price','Lead Source','Status','Commission','GCI'];
+
+/* ---------------- ONE-TIME SETUP: rebuild Active Transactions ---------------- */
+// Run this once manually from the Apps Script editor (select
+// rebuildActiveTransactions_ in the function dropdown, click Run), then
+// delete this function. It is not called from doGet/doPost. It archives the
+// current "Active Transactions" tab (renamed, data untouched) and creates a
+// fresh, empty "Active Transactions" tab with the 98-column layout grouped
+// into a colored category header row above the real field-name row, plus
+// collapsible column groups per category. Refuses to run twice - if an
+// archive already exists, it stops rather than overwriting it.
+function rebuildActiveTransactions_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var archiveName = 'Active Transactions (Archive)';
+  if (ss.getSheetByName(archiveName)) {
+    throw new Error('Archive already exists - already ran this once. Delete "' + archiveName + '" first if you really want to run it again.');
+  }
+  var old = ss.getSheetByName(TAB_ACTIVE);
+  if (!old) throw new Error('No "' + TAB_ACTIVE + '" tab found.');
+  old.setName(archiveName);
+
+  var fresh = ss.insertSheet(TAB_ACTIVE, ss.getSheetIndex(old));
+  var catRow = [], fieldRow = [], col = 1;
+  var colors = ['#1c3d5a', '#2d5f8a']; // alternate two navy shades so adjacent categories are visually distinct
+  ACTIVE_CATEGORIES.forEach(function (cat, i) {
+    var name = cat[0], cols = cat[1];
+    for (var c = 0; c < cols.length; c++) { catRow.push(c === 0 ? name : ''); fieldRow.push(cols[c]); }
+    var startCol = col, span = cols.length;
+    if (span > 1) fresh.getRange(1, startCol, 1, span).merge();
+    fresh.getRange(1, startCol, 1, span).setBackground(colors[i % 2]).setFontColor('#ffffff').setFontWeight('bold');
+    if (span > 1) fresh.getRange(2, startCol, fresh.getMaxRows() - 1, span).shiftColumnGroupDepth(1);
+    col += span;
+  });
+  fresh.getRange(1, 1, 1, catRow.length).setValues([catRow]);
+  fresh.getRange(2, 1, 1, fieldRow.length).setValues([fieldRow]);
+  fresh.getRange(2, 1, 1, fieldRow.length).setFontWeight('bold');
+  fresh.setFrozenRows(2);
+  fresh.setFrozenColumns(1);
+  Logger.log('Rebuilt. Old data archived in "' + archiveName + '". New "' + TAB_ACTIVE + '" is empty with ' + fieldRow.length + ' columns in ' + ACTIVE_CATEGORIES.length + ' categories.');
+}
 
 /* ---------------- entry points ---------------- */
 

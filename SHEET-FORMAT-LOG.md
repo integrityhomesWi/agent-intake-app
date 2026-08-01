@@ -32,6 +32,37 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-07-31 · build `sheets-14` · Active Transactions rebuilt into a fresh categorized tab
+
+The flat sheets-13 layout (98 columns, one long row) was hard to read as a
+human, so the tab itself got rebuilt rather than just re-columned. The
+`rebuildActiveTransactions_()` one-time function (in `google-sheets-backend.gs`,
+not called from doGet/doPost - run manually once from the Apps Script editor)
+renamed the existing `Active Transactions` tab to `Active Transactions
+(Archive)` (data untouched, kept for reference) and created a new, empty
+`Active Transactions` tab with:
+
+- A merged, colored category header row above the field names (18 categories:
+  Overview, Buyer & Seller, Co-op Agent, Offer & Contract, Earnest Money,
+  Inspection, Radon, Termite, Well/Septic/Water, Appraisal, Financing, Title,
+  Property Disclosures, Condo/HOA, Sale of Buyer's Property, Special
+  Contingencies, Closing, Compensation)
+- Collapsible column groups per category (Sheets' native outline feature)
+- Frozen header rows and first column
+
+`COLS_ACTIVE` is now derived from a new `ACTIVE_CATEGORIES` array (single
+source of truth - the flat list and the visual grouping can't drift apart,
+one is generated from the other) instead of being hand-written. Column
+**order changed** to group by category instead of chronological-by-when-added,
+safe only because the new tab starts empty - no existing row data to
+reinterpret at the wrong position. `TAB_ACTIVE` still resolves to whichever
+sheet is named "Active Transactions", so nothing else in the backend needed
+to change.
+
+The archived tab's ~20 rows of real deal data are not migrated automatically -
+re-entering that data into the new tab is separate work (the data-entry
+session's job, not this rebuild).
+
 ### 2026-07-31 · build `sheets-13` · added 64 columns, full Active Transactions rebuild
 
 **Active Transactions**, appended after `HOA` (voice-dictated by John, cross-checked
