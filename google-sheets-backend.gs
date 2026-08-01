@@ -33,7 +33,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-17';
+var BUILD = 'sheets-18';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -122,7 +122,7 @@ function rebuildCategorizedTab_(tabName, categories) {
   if (!old) throw new Error('No "' + tabName + '" tab found.');
   old.setName(archiveName);
 
-  var fresh = ss.insertSheet(tabName, ss.getSheetIndex(old));
+  var fresh = ss.insertSheet(tabName, old.getIndex());
   var catRow = [], fieldRow = [], col = 1;
   var colors = ['#1c3d5a', '#2d5f8a']; // alternate two navy shades so adjacent categories are visually distinct
   categories.forEach(function (cat, i) {
