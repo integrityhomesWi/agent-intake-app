@@ -1,39 +1,37 @@
-/**
- * Integrity Homes - Agent Intake + Command Center: Google Sheets backend
- * ------------------------------------------------------------------------
- * Replaces google-drive-backend.gs. The "IH Live Transaction Tracker" Google
- * Sheet is now the ONE source of truth for every deal. This script is the
- * only thing that reads and writes it. Runs as John's account.
- *
- * SHEET: 1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs ("IH Live Transaction Tracker")
- * TABS : Active Transactions | Listings | Buyer Leads | Closed 2026 | Goals & Pipeline
- *
- * doGet  ?action=list                  -> every row from Active Transactions,
- *                                          Listings, and Buyer Leads, as JSON
- *                                          (JSONP if ?callback= is given)
- * doPost {action:'save', ...}          -> update specific cells in one row,
- *                                          matched by tab + address (or name
- *                                          for Buyer Leads, which has no address)
- * doPost {action:'intake', intake:...} -> append a new row from the Agent
- *                                          Intake app: Buyer-Offer -> Active
- *                                          Transactions, Seller -> Listings,
- *                                          Buyer -> Buyer Leads
- * doPost {action:'converse', ...}      -> one turn of the guided voice
- *                                          follow-up conversation in the
- *                                          Agent Intake app. Calls Claude
- *                                          server-side using ANTHROPIC_API_KEY
- *                                          from this project's Script
- *                                          Properties (Project Settings >
- *                                          Script Properties) - the key never
- *                                          lives in the app itself.
- *
- * DEPLOY / REDEPLOY (keep the SAME url once first deployed):
- *   Deploy > Manage deployments > (pencil) edit > Version: New version > Deploy.
- */
+// Integrity Homes - Agent Intake + Command Center: Google Sheets backend
+// ------------------------------------------------------------------------
+// Replaces google-drive-backend.gs. The "IH Live Transaction Tracker" Google
+// Sheet is now the ONE source of truth for every deal. This script is the
+// only thing that reads and writes it. Runs as John's account.
+//
+// SHEET: 1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs ("IH Live Transaction Tracker")
+// TABS : Active Transactions | Listings | Buyer Leads | Closed 2026 | Goals & Pipeline
+//
+// doGet  ?action=list                  -> every row from Active Transactions,
+//                                          Listings, and Buyer Leads, as JSON
+//                                          (JSONP if ?callback= is given)
+// doPost {action:'save', ...}          -> update specific cells in one row,
+//                                          matched by tab + address (or name
+//                                          for Buyer Leads, which has no address)
+// doPost {action:'intake', intake:...} -> append a new row from the Agent
+//                                          Intake app: Buyer-Offer -> Active
+//                                          Transactions, Seller -> Listings,
+//                                          Buyer -> Buyer Leads
+// doPost {action:'converse', ...}      -> one turn of the guided voice
+//                                          follow-up conversation in the
+//                                          Agent Intake app. Calls Claude
+//                                          server-side using ANTHROPIC_API_KEY
+//                                          from this project's Script
+//                                          Properties (Project Settings >
+//                                          Script Properties) - the key never
+//                                          lives in the app itself.
+//
+// DEPLOY / REDEPLOY (keep the SAME url once first deployed):
+//   Deploy > Manage deployments > (pencil) edit > Version: New version > Deploy.
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-20';
+var BUILD = 'sheets-21';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -90,7 +88,7 @@ var BUYERLEADS_CATEGORIES = [
 var COLS_BUYERLEADS = BUYERLEADS_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
 
 var LISTINGS_CATEGORIES = [
-  ['Property & Sellers', ['Address','Seller 1 Name','Seller 1 Phone','Seller 1 Email','Seller 2 Name','Seller 2 Phone','Seller 2 Email']],
+  ['Property & Sellers', ['Address','Agent','Seller 1 Name','Seller 1 Phone','Seller 1 Email','Seller 2 Name','Seller 2 Phone','Seller 2 Email']],
   ['Listing Status', ['Status','List Date','Expiration Date','List Price','Current Price','Included Items','Excluded Items']],
   ['Media', ['Pictures/Drone/Video Status','Pictures/Drone/Video Completion ETA','Pictures/Drone/Video Folder Link','Virtual Tour Link']],
   ['Signage & Access', ['Sign Post Status','Sign Status','Access Type','Supra Serial #']],
@@ -98,7 +96,8 @@ var LISTINGS_CATEGORIES = [
   ['Disclosures', ['Lead-Based Paint Status','RECR Status','Seller Refusal RECR Status']],
   ['Price Reductions', ['Price Reduction 1','Price Reduction 1 Date','Price Reduction 2','Price Reduction 2 Date','Price Reduction 3','Price Reduction 3 Date','Price Reduction 4','Price Reduction 4 Date','Price Reduction 5','Price Reduction 5 Date']],
   ['Compensation', ['Listing Commission','Seller Commission to Others','Additional Fees','Referral Fee','Referral Name','Referral Phone','Referral Email','Referral Amount']],
-  ['Real Broker Compliance', ['Affiliated Business Agreement Completed','Consumer Choice & Referral Completed','Right to Negotiate Commission']]
+  ['Real Broker Compliance', ['Affiliated Business Agreement Completed','Consumer Choice & Referral Completed','Right to Negotiate Commission']],
+  ['Notes', ['Notes']]
 ];
 var COLS_LISTINGS = LISTINGS_CATEGORIES.reduce(function (acc, cat) { return acc.concat(cat[1]); }, []);
 
@@ -158,6 +157,15 @@ function doGet(e) {
     var payload = { ok: true, deals: listDeals_() };
     if (p.callback) return js_(p.callback, payload);
     return json_(payload);
+  }
+  if (p.action === 'schema') {
+    // Category + field-name layout for each tab, straight from the same
+    // arrays the sheet rebuild used. The Command Center fetches this once so
+    // it can show every column the sheet actually has without a second,
+    // hand-typed copy of the field list that can drift out of sync.
+    var schemaPayload = { ok: true, active: ACTIVE_CATEGORIES, listings: LISTINGS_CATEGORIES, buyerleads: BUYERLEADS_CATEGORIES };
+    if (p.callback) return js_(p.callback, schemaPayload);
+    return json_(schemaPayload);
   }
   return json_({ ok: true, service: 'Integrity Homes Sheets backend', build: BUILD, ready: true });
 }
@@ -333,17 +341,39 @@ function routeIntake_(it) {
   return appendBuyerLead_(ss, it);
 }
 
+// Builds an appendRow-ready array from column-name -> value, matched the same
+// way saveField_ matches an update key to a column (via slugCol_). Replaces
+// the old fixed-position arrays below, which assumed the pre-rebuild column
+// order and went silently wrong the moment Active Transactions and Listings
+// were reorganized into categories (sheets-14/15) - the columns moved, the
+// hardcoded positions did not. Building by name means a future append-only
+// column addition can never misalign an intake write again.
+function buildRow_(cols, valuesByName) {
+  return cols.map(function (name) {
+    var v = valuesByName[name];
+    return (v === undefined || v === null) ? '' : v;
+  });
+}
+
 function appendActiveFromOffer_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_ACTIVE, COLS_ACTIVE);
   var flags = [];
   if (it.missing && it.missing.length) flags.push('MISSING: ' + it.missing.join(', '));
   flags.push('New offer submitted ' + isoDate_(tzOf_(ss)) + ', awaiting acceptance.');
-  var row = [
-    it.address || '', 'Buy', it.agent || '', it.price || '',
-    '', // Accepted - blank until actually accepted
-    it.earnest || '', '', '', '', '', '', '', it.closedate || '', '', '',
-    flags.join(' '), it.names || '', '', '', '', ''
-  ];
+  // Active Transactions has no Phone/Email/Pre-Approval columns of its own -
+  // those live on the Buyer Leads tab. A buyer writing straight to an offer
+  // skips that tab, so this info is not stored anywhere yet; flag it here if
+  // it matters enough to add a column for.
+  var row = buildRow_(COLS_ACTIVE, {
+    'Address': it.address || '',
+    'Side': 'Buy',
+    'Agent': it.agent || '',
+    'Price': it.price || '',
+    'Buyer(s)': it.names || '',
+    'Earnest Money': it.earnest || '',
+    'Closing': it.closedate || '',
+    'Action Needed / Flags': flags.join(' ')
+  });
   sheet.appendRow(row);
   return { tab: TAB_ACTIVE, row: sheet.getLastRow() };
 }
@@ -354,10 +384,15 @@ function appendListingFromSeller_(ss, it) {
   if (it.missing && it.missing.length) notes.push('MISSING: ' + it.missing.join(', '));
   notes.push('New lead ' + isoDate_(tzOf_(ss)) + '. Anticipated list date: ' + (it.listdate || 'TBD') + '.');
   if (it.notes) notes.push(it.notes);
-  var row = [
-    it.address || '', it.agent || '', 'New Lead', '', '', '', '', '', '', '', '', '', '',
-    it.names || '', notes.join(' ')
-  ];
+  var row = buildRow_(COLS_LISTINGS, {
+    'Address': it.address || '',
+    'Agent': it.agent || '',
+    'Status': 'New Lead',
+    'Seller 1 Name': it.names || '',
+    'Seller 1 Phone': it.phone || '',
+    'Seller 1 Email': it.email || '',
+    'Notes': notes.join(' ')
+  });
   sheet.appendRow(row);
   return { tab: TAB_LISTINGS, row: sheet.getLastRow() };
 }
@@ -366,11 +401,18 @@ function appendBuyerLead_(ss, it) {
   var sheet = getOrCreateTab_(ss, TAB_BUYERLEADS, COLS_BUYERLEADS);
   var notes = [];
   if (it.missing && it.missing.length) notes.push('MISSING: ' + it.missing.join(', '));
+  if (it.areas) notes.push('Areas / must-haves: ' + it.areas);
   if (it.notes) notes.push(it.notes);
-  var row = [
-    it.names || '', it.phone || '', it.email || '', it.preapproval || '',
-    it.pricerange || '', it.areas || '', it.agent || '', isoDate_(tzOf_(ss)), notes.join(' ')
-  ];
+  var row = buildRow_(COLS_BUYERLEADS, {
+    'Buyer 1 Name': it.names || '',
+    'Buyer 1 Phone': it.phone || '',
+    'Buyer 1 Email': it.email || '',
+    'Agent': it.agent || '',
+    'Date Received': isoDate_(tzOf_(ss)),
+    'Price Range': it.pricerange || '',
+    'Pre-Approval Status': it.preapproval || '',
+    'Notes': notes.join(' ')
+  });
   sheet.appendRow(row);
   return { tab: TAB_BUYERLEADS, row: sheet.getLastRow() };
 }

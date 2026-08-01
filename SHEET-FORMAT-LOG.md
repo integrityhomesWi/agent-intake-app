@@ -32,6 +32,38 @@ displace a column already in use.
 
 ## Changes
 
+### 2026-08-01 · build `sheets-21` · Listings gets Agent + Notes, intake writers fixed
+
+Two real bugs caught while wiring the Command Center up to the rebuilt tabs:
+
+**Listings had no Agent or Notes column.** The sheets-15 categorization
+accidentally dropped both - Agent (needed for ownership/filtering, same role
+it plays on Active Transactions and Buyer Leads) and a general Notes/flags
+column (needed so a new listing intake's `MISSING:` flags have somewhere to
+land, same pattern as Active Transactions' "Action Needed / Flags" and Buyer
+Leads' "Notes"). Added `Agent` to the `Property & Sellers` category and a new
+trailing `Notes` category. Since the Listings tab was still empty (no data
+entered since the sheets-15 rebuild), this was fixed by re-running
+`rebuildListings()` rather than an in-place column append - no migration
+needed. `LISTINGS_CATEGORIES` is now 52 columns in 10 categories.
+
+**Intake writers were building rows by fixed position.**
+`appendActiveFromOffer_`, `appendListingFromSeller_`, and `appendBuyerLead_`
+each built the new-row array as a hardcoded literal matching the OLD
+(pre-sheets-14/15) column order. Once Active Transactions and Listings were
+rebuilt into categories, those positions no longer matched anything - a new
+offer or listing intake would have silently written values into the wrong
+columns. Replaced all three with `buildRow_(cols, valuesByName)`, which maps
+a plain `{'Column Name': value}` object onto the row using the same
+name-matching (`slugCol_`) that `saveField_` already uses to write updates.
+This means a future append-only column addition can never misalign an intake
+write again, regardless of where it lands in the array.
+
+Also added `doGet ?action=schema`, returning `ACTIVE_CATEGORIES`,
+`LISTINGS_CATEGORIES`, and `BUYERLEADS_CATEGORIES` as JSON, so the Command
+Center can read the sheet's category/field layout directly instead of
+keeping its own hand-typed copy that could drift out of sync.
+
 ### 2026-07-31 · build `sheets-15` · Buyer Leads and Listings rebuilt the same way as Active Transactions
 
 Same treatment as the sheets-14 Active Transactions rebuild, extended to the
