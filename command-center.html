@@ -444,7 +444,7 @@ const msWrite=v=>Object.prototype.hasOwnProperty.call(MS_OUT,v)?MS_OUT[v]:v;
 // Status wins when set; otherwise fall back to the Due Date column so the
 // milestone cell always shows something useful even before anyone has
 // touched Status.
-function pairMs(status,dueDate){ const s=msOf(status); return s || isoOf(dueDate) || ""; }
+function pairMs(status,dueDate,legacy){ const s=msOf(status); if(s) return s; const d=isoOf(dueDate); if(d) return d; return legacy?msOf(legacy):""; }
 
 // Mirrors slugCol_ in google-sheets-backend.gs - lets the frontend turn a
 // sheet column name (from the /schema endpoint) into the same key readTab_
@@ -476,7 +476,7 @@ const ACTIVE_DUMP_EXCLUDE=new Set(['address','side','agent','price','health','ac
   'buyers','sellers','co_op_agent','home_inspector','offer_date','accepted','closing',
   'counter_offer_date','amendment_1_date','amendment_1_notes','amendment_2_date','amendment_2_notes','amendment_3_date','amendment_3_notes',
   'earnest_money','earnest_money_holder','earnest_money_status','earnest_money_due_date',
-  'inspection_status','inspection_due_date','radon_status','radon_due_date',
+  'inspection','inspection_status','inspection_due_date','radon','radon_status','radon_due_date',
   'septic_status','septic_deadline','well_status','well_deadline','water_status','water_deadline','septic_well_water_notes',
   'appraisal','financing','lender','title_company','title_status']);
 // Renders every non-blank field from a category list as a labeled block,
@@ -529,9 +529,9 @@ function adaptActive(r){
     price:numOf(r.price), close, accept,
     title:String(r.title_status||""),
     ms:{
-      em:pairMs(r.earnest_money_status,r.earnest_money_due_date),
-      insp:pairMs(r.inspection_status,r.inspection_due_date),
-      radon:pairMs(r.radon_status,r.radon_due_date),
+      em:pairMs(r.earnest_money_status,r.earnest_money_due_date,r.earnest_money),
+      insp:pairMs(r.inspection_status,r.inspection_due_date,r.inspection),
+      radon:pairMs(r.radon_status,r.radon_due_date,r.radon),
       appr:msOf(r.appraisal), fin:msOf(r.financing)
     },
     emAmount:String(r.earnest_money||""), emHolder:String(r.earnest_money_holder||""),
