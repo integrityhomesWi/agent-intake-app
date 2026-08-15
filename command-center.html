@@ -441,9 +441,11 @@ function msOf(v){
 const MS_COL={em:"earnest_money_status",insp:"inspection_status",radon:"radon_status",appr:"appraisal",fin:"financing"};
 const MS_OUT={done:"Done",expired:"Expired",na:"N/A",waived:"Waived",received:"Rec'd",satisfied:"Satisfied","":""};
 const msWrite=v=>Object.prototype.hasOwnProperty.call(MS_OUT,v)?MS_OUT[v]:v;
-// Status wins when set; otherwise fall back to the Due Date column so the
-// milestone cell always shows something useful even before anyone has
-// touched Status.
+// Status wins when set; otherwise fall back to the Due Date column; otherwise
+// fall back to the pre-split legacy field (rows backfilled from before the
+// Status/Due Date split existed carry real info there - "Rec'd ($3,000)",
+// "7/3 unconfirmed" - that's not lossy free text to discard, it's the only
+// record of where that deal actually stands).
 function pairMs(status,dueDate,legacy){ const s=msOf(status); if(s) return s; const d=isoOf(dueDate); if(d) return d; return legacy?msOf(legacy):""; }
 
 // Mirrors slugCol_ in google-sheets-backend.gs - lets the frontend turn a
