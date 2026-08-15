@@ -31,7 +31,7 @@
 
 // Bump this on every paste-and-deploy. doGet reports it, so we can confirm from
 // the outside which build is actually live instead of guessing.
-var BUILD = 'sheets-21';
+var BUILD = 'sheets-23';
 
 var SHEET_ID = '1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs';
 var TAB_ACTIVE = 'Active Transactions';
@@ -166,6 +166,33 @@ function doGet(e) {
     var schemaPayload = { ok: true, active: ACTIVE_CATEGORIES, listings: LISTINGS_CATEGORIES, buyerleads: BUYERLEADS_CATEGORIES };
     if (p.callback) return js_(p.callback, schemaPayload);
     return json_(schemaPayload);
+  }
+  if (p.action === 'closeDeal' && p.address) {
+    // Moves a row from Active Transactions to Closed 2026. GET-based (not
+    // POST) on purpose: the remote MCP connector proxying to this backend
+    // calls it via plain query params, no JSON body involved.
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var active = ss.getSheetByName(TAB_ACTIVE);
+    var closedSheet = ss.getSheetByName(TAB_CLOSED);
+    var hdr = ensureHeaders_(active, COLS_ACTIVE);
+    var lastRow = active.getLastRow();
+    var wantKey = normKey_(p.address);
+    var found = -1;
+    for (var r = hdr + 1; r <= lastRow; r++) {
+      var v = active.getRange(r, 1).getValue();
+      if (normKey_(v) === wantKey) { found = r; break; }
+    }
+    if (found === -1) return json_({ ok: false, error: 'row not found: ' + p.address });
+    var rowVals = active.getRange(found, 1, 1, COLS_ACTIVE.length).getDisplayValues()[0];
+    var map = {};
+    for (var c = 0; c < COLS_ACTIVE.length; c++) { map[COLS_ACTIVE[c]] = rowVals[c]; }
+    var closedRow = buildRow_(COLS_CLOSED, {
+      'Address': map['Address'], 'Agent': map['Agent'], 'Side': map['Side'],
+      'Closed': p.closedDate || map['Closing'], 'Price': map['Price'], 'Status': 'Closed'
+    });
+    closedSheet.appendRow(closedRow);
+    active.deleteRow(found);
+    return json_({ ok: true, moved: map['Address'], closedDate: p.closedDate || map['Closing'] });
   }
   return json_({ ok: true, service: 'Integrity Homes Sheets backend', build: BUILD, ready: true });
 }
@@ -321,14 +348,20 @@ function saveField_(tab, key, updates) {
   }
   if (rowNum === -1) return { ok: false, error: 'row not found for key: ' + key };
 
+  var unmatched = [];
   Object.keys(updates).forEach(function (slug) {
     var colIndex = -1;
     for (var c = 0; c < cols.length; c++) {
-      if (slugCol_(cols[c]) === slug) { colIndex = c + 1; break; }
+      if (slugCol_(cols[c]) === slugCol_(slug)) { colIndex = c + 1; break; }
     }
-    if (colIndex === -1) return;
+    if (colIndex === -1) { unmatched.push(slug); return; }
     sheet.getRange(rowNum, colIndex).setValue(updates[slug]);
   });
+  // A field name that doesn't match any column used to fail silently -
+  // ok:true came back even though nothing was written. Surfacing the miss
+  // here means a bad field name is visible immediately instead of looking
+  // like a successful no-op write.
+  if (unmatched.length) return { ok: false, error: 'no matching column for: ' + unmatched.join(', ') };
   return { ok: true };
 }
 

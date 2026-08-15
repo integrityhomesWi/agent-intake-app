@@ -35,8 +35,14 @@ function refuse(name) {
   return NEVER.some(rx => rx.test(name));
 }
 
-fs.rmSync(OUT, { recursive: true, force: true });
+// Clear the folder but keep site/.git if it exists. site/ is its own repository,
+// the only one that may ever be pushed to a public host, so wiping it would
+// destroy the deploy history and the remote every time the site was rebuilt.
 fs.mkdirSync(OUT, { recursive: true });
+for (const entry of fs.readdirSync(OUT)) {
+  if (entry === '.git') continue;
+  fs.rmSync(path.join(OUT, entry), { recursive: true, force: true });
+}
 
 let copied = 0;
 for (const f of PUBLIC_FILES) {
@@ -55,7 +61,7 @@ for (const f of PUBLIC_FILES) {
 
 // Prove the output contains nothing but the allow-list, so a mistake in this
 // script cannot quietly ship client data.
-const actual = fs.readdirSync(OUT).sort();
+const actual = fs.readdirSync(OUT).filter(f => f !== '.git').sort();
 const expected = [...PUBLIC_FILES].sort();
 const unexpected = actual.filter(f => !expected.includes(f));
 if (unexpected.length) {

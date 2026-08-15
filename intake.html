@@ -301,13 +301,48 @@ function makeRec(){
 
 /* ---------- speech output (read-back) ---------- */
 const SS = window.speechSynthesis;
+// The browser's default picked voice is usually the worst-sounding one
+// available, not the highest quality. Score every installed voice and
+// prefer known natural/enhanced ones (iOS Siri voices, Chrome/Android's
+// Google voices, Edge's Natural/neural voices) over generic robotic
+// fallbacks. getVoices() can return empty on first call on some browsers
+// until the async voiceschanged event fires, so this caches the result
+// once voices are actually available instead of re-scoring every call.
+let _bestVoice=null, _voicesReady=false;
+function scoreVoice(v){
+  const n=v.name.toLowerCase();
+  let s=0;
+  if(!v.lang.toLowerCase().startsWith('en')) s-=50;
+  if(/premium|enhanced|natural|neural/.test(n)) s+=40;
+  if(/siri/.test(n)) s+=35;
+  if(/google/.test(n)) s+=25;
+  if(/samantha|ava|zoe|nicky/.test(n)) s+=20;
+  if(v.lang==='en-US') s+=10;
+  if(v.localService) s+=5;
+  return s;
+}
+function pickBestVoice(){
+  const voices=SS.getVoices();
+  if(!voices.length) return null;
+  _voicesReady=true;
+  return voices.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+}
+if(SS){
+  _bestVoice=pickBestVoice();
+  SS.addEventListener('voiceschanged',()=>{ _bestVoice=pickBestVoice(); });
+}
+function makeUtterance(text){
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=1; u.pitch=1; u.lang='en-US';
+  if(!_bestVoice && SS) _bestVoice=pickBestVoice();
+  if(_bestVoice) u.voice=_bestVoice;
+  return u;
+}
 function speak(text){
   if(!SS || !text) return;
   try{
     SS.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=1; u.pitch=1; u.lang='en-US';
-    SS.speak(u);
+    SS.speak(makeUtterance(text));
   }catch(_){}
 }
 // Speaks, then calls back when done. Falls back on a timeout in case onend
@@ -316,8 +351,7 @@ function speakThen(text, cb){
   if(!SS || !text){ cb&&cb(); return; }
   try{
     SS.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.rate=1; u.pitch=1; u.lang='en-US';
+    const u=makeUtterance(text);
     let fired=false;
     const done=()=>{ if(fired) return; fired=true; cb&&cb(); };
     u.onend=done; u.onerror=done;
