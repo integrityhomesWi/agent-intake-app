@@ -177,6 +177,23 @@
   .tname{font-weight:700;color:var(--navy);font-size:13px}
   .tn{font-size:12px;color:var(--muted);margin-top:1px}
   .tv{font-size:12px;color:var(--green);font-weight:600}
+  /* GCI by lead source rollup */
+  .gcitabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .gcitab{font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);cursor:pointer}
+  .gcitab.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+  .gciwrap{overflow-x:auto}
+  .gcitbl{border-collapse:collapse;font-size:12.5px;min-width:100%}
+  .gcitbl th,.gcitbl td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+  .gcitbl th:first-child,.gcitbl td:first-child{text-align:left;position:sticky;left:0;background:#fff}
+  .gcitbl thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;background:#eef2f6}
+  .gcitbl thead th:first-child{background:#eef2f6}
+  .gcitbl tbody tr:hover td{background:#f7f9fb}
+  .gcitbl tbody tr:hover td:first-child{background:#f7f9fb}
+  .gcitbl .src{font-weight:600;color:var(--navy)}
+  .gcitbl .zero{color:#c3cad3}
+  .gcitbl tr.totrow td{font-weight:700;color:var(--navy);border-top:2px solid var(--line);border-bottom:none;background:#f7f9fb}
+  .gcitbl td.totcol,.gcitbl th.totcol{border-left:2px solid var(--line);font-weight:700;color:var(--green)}
+  .gcinote{font-size:11.5px;color:var(--muted);margin-top:10px}
   @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.qgrid{grid-template-columns:repeat(2,1fr)}.gcols,.gcols2,.pl2{grid-template-columns:1fr}.vips{grid-template-columns:repeat(2,1fr)}.tblhead{display:none}.dhead{grid-template-columns:1fr auto auto;row-gap:8px}.dhead .ms,.dhead .emc,.dhead .h-side,.dhead .h-price,.dhead .h-agent,.dhead .h-title,.dhead .h-next,.dhead .h-sched{display:none}.grid{grid-template-columns:1fr}}
   .livebar{font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
@@ -260,6 +277,16 @@
         <span class="ytd-meta" id="g-volmeta"></span>
       </div>
       <div class="qgrid" id="g-quarters"></div>
+    </div>
+    <div class="gsec">
+      <div class="gtitle">GCI by Lead Source <span style="font-weight:400;color:var(--muted);font-size:12px">— closed deals · where the money actually came from</span></div>
+      <div class="gcitabs" id="gci-tabs">
+        <button class="gcitab on" data-gci="quarter">By quarter</button>
+        <button class="gcitab" data-gci="month">By month</button>
+        <button class="gcitab" data-gci="net">Net instead of gross</button>
+      </div>
+      <div class="gciwrap"><table class="gcitbl" id="gci-tbl"></table></div>
+      <div class="gcinote" id="gci-note"></div>
     </div>
     <div class="gsec"><div class="gtitle">Team Transactions <span style="font-weight:400;color:var(--muted);font-size:12px">— other agents only · closed = 2026 YTD · not in your goal</span></div><div id="g-team"></div></div>
     <div class="gcols">
@@ -410,7 +437,13 @@ const CUR_YEAR=new Date().getFullYear();
 // "7/3 ⚠ unconfirmed" readable in the row instead of being silently dropped.
 function isoOf(v){
   const s=String(v==null?"":v).trim();
-  let m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  // Airtable date fields come back already ISO (2026-05-08), which is the
+  // format the rest of this file works in. The M/D/YYYY branches below are
+  // the Google Sheets era, kept because plenty of date-ish fields here are
+  // still free text somebody typed as "8/16" rather than a real date field.
+  let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
   if(m) return m[3]+"-"+p2(m[1])+"-"+p2(m[2]);
   m=/^(\d{1,2})\/(\d{1,2})$/.exec(s);
   if(m) return CUR_YEAR+"-"+p2(m[1])+"-"+p2(m[2]);
@@ -511,7 +544,7 @@ function adaptActive(r){
   add("Buyer",r.buyers); add("Seller",r.sellers);
   add("Co-op agent",r.co_op_agent); add("Lender",r.lender); add("Title",r.title_company);
   add("Inspector",r.home_inspector);
-  const close=isoOf(r.closing),accept=isoOf(r.accepted),dates=[];
+  const close=isoOf(r.closing_date),accept=isoOf(r.accepted_date),dates=[];
   if(accept)dates.push(["Acceptance",accept]);
   if(close)dates.push(["Closing",close]);
   const health=String(r.health||"").trim();
@@ -533,12 +566,12 @@ function adaptActive(r){
     price:numOf(r.price), close, accept,
     title:String(r.title_status||""),
     ms:{
-      em:pairMs(r.earnest_money_status,r.earnest_money_due_date,r.earnest_money),
+      em:pairMs(r.earnest_money_status,r.earnest_money_due_date,r.earnest_money_amount),
       insp:pairMs(r.inspection_status,r.inspection_due_date,r.inspection),
       radon:pairMs(r.radon_status,r.radon_due_date,r.radon),
       appr:msOf(r.appraisal), fin:msOf(r.financing)
     },
-    emAmount:String(r.earnest_money||""), emHolder:String(r.earnest_money_holder||""),
+    emAmount:String(r.earnest_money_amount||""), emHolder:String(r.earnest_money_holder||""),
     septic:{status:String(r.septic_status||""),deadline:isoOf(r.septic_deadline)},
     well:{status:String(r.well_status||""),deadline:isoOf(r.well_deadline)},
     water:{status:String(r.water_status||""),deadline:isoOf(r.water_deadline)},
@@ -552,7 +585,7 @@ function adaptActive(r){
   };
 }
 function adaptClosed(r){
-  const cancelled=/cancel/i.test(String(r.status||"")),close=isoOf(r.closed);
+  const cancelled=/cancel/i.test(String(r.status||"")),close=isoOf(r.closed_date);
   return {
     tab:r.tab, key:r.key, rowNum:r.rowNum,
     addr:r.address||"", side:r.side||"", owner:r.agent||"",
@@ -562,6 +595,7 @@ function adaptClosed(r){
     parties:{}, dates:close?[["Closing",close]]:[], changes:[], notes:"",
     closed:!cancelled, cancelled, count:1,
     lead:(r.lead_source&&String(r.lead_source).trim())||null,
+    gci:numOf(r.gross_commission_gci), netCommission:numOf(r.net_commission),
     _file:r.tab+" · row "+r.rowNum
   };
 }
@@ -909,8 +943,78 @@ function renderGoals(){
   qc.querySelectorAll('.qtoggle').forEach(t=>t.addEventListener('click',()=>{const el=document.getElementById('qd-'+t.dataset.qd);el.style.display=el.style.display==='none'?'block':'none';}));
   qc.querySelectorAll('.qdl[data-open]').forEach(r=>r.addEventListener('click',()=>openDeal(+r.dataset.open)));
 
-  renderTeamCounter();renderCap();renderElite();renderLines();renderRefs2();renderVips();
+  renderTeamCounter();renderGci();renderCap();renderElite();renderLines();renderRefs2();renderVips();
 }
+
+// ---------- GCI by lead source ----------
+// Answers "where did the money actually come from", which the deal-count
+// goal tracker above cannot: a Zillow lead closing for $220 of GCI and a
+// referral closing for $23,400 both count as exactly one deal there.
+// Reads the same closed deals everything else on this tab uses; the Gross
+// Commission (GCI) / Net Commission / Lead Source fields come straight off
+// the Closed Deals records.
+let GCI_PERIOD='quarter', GCI_BASIS='gci';
+const GCI_UNTAGGED='(no lead source)';
+function gciRollup(){
+  const rows=deals.filter(d=>d.closed&&d.close);
+  const byM=(iso)=>new Date(iso+'T00:00:00').getMonth();
+  const cols=GCI_PERIOD==='month'
+    ? MONTHS.map((m,i)=>({key:i,label:m}))
+    : [0,1,2,3].map(q=>({key:q,label:'Q'+(q+1)}));
+  const colOf=d=>GCI_PERIOD==='month'?byM(d.close):Math.floor(byM(d.close)/3);
+  const bySrc={};
+  rows.forEach(d=>{
+    const yr=new Date(d.close+'T00:00:00').getFullYear();
+    if(yr!==today.getFullYear()) return;
+    const src=d.lead||GCI_UNTAGGED;
+    const amt=Number(GCI_BASIS==='net'?d.netCommission:d.gci)||0;
+    const b=(bySrc[src]=bySrc[src]||{cells:{},total:0,deals:0,untracked:0});
+    const c=colOf(d);
+    b.cells[c]=(b.cells[c]||0)+amt;
+    b.total+=amt; b.deals++;
+    if(!amt) b.untracked++;
+  });
+  return {cols,bySrc};
+}
+function renderGci(){
+  const {cols,bySrc}=gciRollup();
+  const srcs=Object.keys(bySrc).sort((a,b)=>bySrc[b].total-bySrc[a].total);
+  // Always two decimals here, unlike m$ elsewhere: commission figures carry
+  // real cents, and mixing "$41,231.3" with "$118,085.93" in one column
+  // reads as a glitch.
+  const money=n=>n?'$'+(Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})
+                 :'<span class="zero">—</span>';
+  const colTot=c=>srcs.reduce((s,k)=>s+(bySrc[k].cells[c]||0),0);
+  const grand=srcs.reduce((s,k)=>s+bySrc[k].total,0);
+  const head='<thead><tr><th>Lead source</th>'+cols.map(c=>`<th>${c.label}</th>`).join('')
+    +'<th class="totcol">Year total</th><th>Deals</th></tr></thead>';
+  const body='<tbody>'+srcs.map(k=>{
+    const b=bySrc[k];
+    return `<tr><td class="src">${k}</td>`
+      +cols.map(c=>`<td>${money(b.cells[c.key]||0)}</td>`).join('')
+      +`<td class="totcol">${money(b.total)}</td><td>${b.deals}</td></tr>`;
+  }).join('')
+    +`<tr class="totrow"><td>All sources</td>`
+    +cols.map(c=>`<td>${money(colTot(c.key))}</td>`).join('')
+    +`<td class="totcol">${money(grand)}</td><td>${srcs.reduce((s,k)=>s+bySrc[k].deals,0)}</td></tr></tbody>`;
+  document.getElementById('gci-tbl').innerHTML=head+body;
+  // A closed deal with no commission recorded would otherwise silently read
+  // as "$0 earned from that source" rather than "not filled in yet".
+  const missing=srcs.reduce((s,k)=>s+bySrc[k].untracked,0);
+  const basis=GCI_BASIS==='net'?'Net commission':'Gross commission (GCI)';
+  document.getElementById('gci-note').innerHTML=`${basis} on closed deals, ${today.getFullYear()} year to date.`
+    +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count':'it counts'} as a deal but adds nothing to the totals.`:'');
+}
+document.getElementById('gci-tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.gcitab'); if(!b) return;
+  const v=b.dataset.gci;
+  if(v==='net') GCI_BASIS=GCI_BASIS==='net'?'gci':'net';
+  else GCI_PERIOD=v;
+  document.querySelectorAll('#gci-tabs .gcitab').forEach(t=>{
+    t.classList.toggle('on', t.dataset.gci==='net' ? GCI_BASIS==='net' : t.dataset.gci===GCI_PERIOD);
+  });
+  renderGci();
+});
 // MY_CLOSED and TEAM_CLOSED are built from the sheet's Closed 2026 tab in
 // loadDeals. Both used to be hardcoded arrays here, frozen in July, and they had
 // already drifted behind the sheet by several closings.
