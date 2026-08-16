@@ -198,12 +198,13 @@
 
 <script>
 /* ---------- backend config ---------- */
-// A finished intake goes straight into the "IH Live Transaction Tracker" Google
-// Sheet, which is the source of truth for every deal: a Buyer-Offer becomes a
-// row on Active Transactions, a Seller becomes a row on Listings, and a Buyer
-// becomes a row on Buyer Leads. If this is ever blank the app still works, it
-// just shows the file to copy by hand instead of filing it.
-const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
+// A finished intake goes straight into the "IH Transaction Tracker" Airtable
+// base (moved off the old "IH Live Transaction Tracker" Google Sheet - see
+// CLAUDE.md), which is the source of truth for every deal: a Buyer-Offer
+// becomes a row on Active Transactions, a Seller becomes a row on Listings,
+// and a Buyer becomes a row on Buyer Leads. If this is ever blank the app
+// still works, it just shows the file to copy by hand instead of filing it.
+const BACKEND_ENDPOINT = "https://ih-airtable-backend.john-4b1.workers.dev";
 
 /* ---------- field definitions per type ---------- */
 const TYPES = {
@@ -472,7 +473,7 @@ let convoRec=null;
 
 async function converseTurn(said){
   try{
-    const resp=await fetch(SHEET_ENDPOINT,{
+    const resp=await fetch(BACKEND_ENDPOINT,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({
@@ -819,7 +820,7 @@ document.getElementById('submitBtn').addEventListener('click',()=>{
 
 function saveToDrive(missing, vals){
   const note=document.getElementById('driveNote');
-  if(!SHEET_ENDPOINT){
+  if(!BACKEND_ENDPOINT){
     note.textContent="Not connected yet. Use Copy file for now.";
     note.style.color="var(--muted)";
     return;
@@ -829,7 +830,7 @@ function saveToDrive(missing, vals){
   // The backend decides which tab this belongs on and adds the row.
   const intake=Object.assign({type:curType, missing:missing}, vals);
   try{
-    fetch(SHEET_ENDPOINT,{
+    fetch(BACKEND_ENDPOINT,{
       method:"POST",
       mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},

@@ -1,0 +1,4 @@
+name = "ih-airtable-backend"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+account_id = "34b1bffe39261046cd0c015d05885c90"
