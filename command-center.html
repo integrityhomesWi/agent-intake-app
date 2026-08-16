@@ -297,16 +297,18 @@
     <div id="llist"></div>
   </div><!-- end view-listings -->
 
-  <footer>Live system. The IH Live Transaction Tracker sheet is the source of truth, and edits here save straight back into it.</footer>
+  <footer>Live system. The IH Transaction Tracker (Airtable) is the source of truth, and edits here save straight back into it.</footer>
 </div>
 <script>
 /* ---------- live backend config ----------
-   The "IH Live Transaction Tracker" Google Sheet is the source of truth. This
-   endpoint is the only thing that reads and writes it. Nothing here touches
-   Drive or markdown files any more, and nothing is seeded from hardcoded data:
-   every listing, closing, and deal below comes from the sheet at page load. */
-const SHEET_ENDPOINT="https://script.google.com/macros/s/AKfycby7uZ9eClgv0lqFzoN1UjDj77w21lGmVhvmCRunvPn1AavN3XfoFqavwYKvj7vpi74/exec";
-const SHEET_URL="https://docs.google.com/spreadsheets/d/1HJZPXHP8y8cUdANbuiw916c8WLj66KYW8Qo_jSJ9oIs/edit";
+   The "IH Transaction Tracker" Airtable base is the source of truth (moved
+   off the old "IH Live Transaction Tracker" Google Sheet - see CLAUDE.md).
+   This endpoint (a Cloudflare Worker, airtable-backend/worker.js in the repo)
+   is the only thing that reads and writes it, holding the Airtable token so
+   it never has to live in this page. Nothing is seeded from hardcoded data:
+   every listing, closing, and deal below comes from Airtable at page load. */
+const BACKEND_ENDPOINT="https://ih-airtable-backend.john-4b1.workers.dev";
+const TRACKER_URL="https://airtable.com/appVvzwT3K2OTwRgR";
 
 // Agent (read-only) view: add ?agent=1 to the URL. Every editable control is
 // locked (see the body.agent-mode CSS rules), the Goals & Pipeline tab (John's
@@ -468,7 +470,7 @@ function loadSchema(){
     if(s.parentNode)s.parentNode.removeChild(s);
   };
   const s=document.createElement('script');
-  s.src=SHEET_ENDPOINT+"?action=schema&callback="+cb+"&t="+Date.now();
+  s.src=BACKEND_ENDPOINT+"?action=schema&callback="+cb+"&t="+Date.now();
   document.head.appendChild(s);
 }
 // Fields already surfaced by name elsewhere in a deal's detail view (header
@@ -613,7 +615,7 @@ function loadDeals(){
   };
   const s=document.createElement('script');
   s.onerror=function(){ setLive('err','Could not reach the tracker sheet. Nothing will save until it is back.'); afterLoad(); };
-  s.src=SHEET_ENDPOINT+"?action=list&callback="+cb+"&t="+Date.now();
+  s.src=BACKEND_ENDPOINT+"?action=list&callback="+cb+"&t="+Date.now();
   document.head.appendChild(s);
 }
 // Writes specific columns of one row. The sheet finds the row by the value in
@@ -623,9 +625,9 @@ function loadDeals(){
 function saveCell(tab,key,updates){
   if(!tab||!key||!updates||!Object.keys(updates).length) return;
   try{
-    fetch(SHEET_ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+    fetch(BACKEND_ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({action:"save",tab:tab,key:key,updates:updates})});
-    setLive('ok','✓ Sent to the sheet');
+    setLive('ok','✓ Sent to the tracker');
   }catch(e){ setLive('err','That change did not send. Check your connection.'); }
 }
 function afterLoad(){ populateAgents(); recompute(); stats(); render(); renderListings(); renderGoals(); }
@@ -1064,7 +1066,7 @@ document.getElementById('lstatusF').value="Active";
 // Adding and deleting listings happens in the sheet itself. The backend only
 // updates existing rows, and a button that looked like it added a listing but
 // did not would be worse than sending John to the one place that works.
-document.getElementById('laddbtn').addEventListener('click',()=>window.open(SHEET_URL,'_blank'));
+document.getElementById('laddbtn').addEventListener('click',()=>window.open(TRACKER_URL,'_blank'));
 
 document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.mtab').forEach(x=>x.classList.remove('active'));
