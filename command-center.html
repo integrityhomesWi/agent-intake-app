@@ -222,7 +222,7 @@
 <header>
   <a class="home" href="index.html">← Home</a>
   <h1>Integrity Homes — Command Center</h1>
-  <div class="sub">Deals + goals in one place · LIVE from the IH Live Transaction Tracker · the sheet is the source of truth · goal tracker auto-counts from your closings</div>
+  <div class="sub">Deals + goals in one place · LIVE from the IH Transaction Tracker · Airtable is the source of truth · goal tracker auto-counts from your closings</div>
 </header>
 <div class="wrap">
   <div class="maintabs">
@@ -244,7 +244,7 @@
     <button class="x" id="exp">Expand all</button>
     <button class="x" id="refresh">↻ Refresh</button>
   </div>
-  <p class="legend"><b>Click a milestone</b> to cycle: due date → <b>Done</b> → <b>Expired</b> → <b>N/A</b>. Earnest Money cycles Due → Sent → Waiting → Rec'd → Done → N/A. Red = past/≤3d, amber = ≤14d. <b>“—” = not entered yet</b>; <b>N/A = not tracked</b>. <b>Expired</b> = contingency deadline lapsed. <b>Live:</b> every change saves straight into that row of the tracker sheet, so you, Lindsay, and this page are always looking at the same thing.</p>
+  <p class="legend"><b>Click a milestone</b> to cycle: due date → <b>Done</b> → <b>Expired</b> → <b>N/A</b>. Earnest Money cycles Due → Sent → Waiting → Rec'd → Done → N/A. Red = past/≤3d, amber = ≤14d. <b>“—” = not entered yet</b>; <b>N/A = not tracked</b>. <b>Expired</b> = contingency deadline lapsed. <b>Live:</b> every change saves straight into that record in the tracker, so you, Lindsay, and this page are always looking at the same thing.</p>
   <div class="tblhead">
     <div>Property</div><div class="c">Side</div><div class="c">Agent</div><div class="price">Price</div>
     <div class="c">EM</div><div class="c">Insp</div><div class="c">Radon</div><div class="c">Appr</div><div class="c">Fin</div>
@@ -307,16 +307,16 @@
         </div></div>
     </div>
     <div class="gsec"><div class="gtitle">VIPs</div><div class="vips" id="g-vips"></div><button class="addln" data-k="vips">+ add</button></div>
-    <p class="legend"><b>Closed YTD</b> and <b>Volume</b> come straight from the Closed 2026 tab of the tracker sheet, so they match what the sheet says. Month and quarter goals, cap, elite, pipeline, referrals, and VIPs still save in this browser only, because the sheet's Goals &amp; Pipeline tab is free-form and not safe to read automatically yet.</p>
+    <p class="legend"><b>Closed YTD</b>, <b>Volume</b>, and the <b>GCI by Lead Source</b> table above come straight from the Closed Deals table in the tracker, so they match what Airtable says. Month and quarter goals, cap, elite, pipeline, referrals, and VIPs still save in this browser only — the tracker now has real tables waiting for them (Monthly Goals, Quarterly Goals, Annual Settings, Pipeline Notes, Referrals, VIP Clients), but this page has not been wired to them yet.</p>
   </div><!-- end view-goals -->
 
   <div id="view-listings" class="view">
     <div class="toolbar">
       <input type="search" id="lq" placeholder="Search address or agent...">
       <select id="lstatusF"><option value="">All statuses</option></select>
-      <button class="x" id="laddbtn">Open the sheet ↗</button>
+      <button class="x" id="laddbtn">Open the tracker ↗</button>
     </div>
-    <p class="legend">Status, photos, sign, lockbox, title, and seller contacts save straight into the Listings tab of the tracker sheet. Expand a row for the full checklist. Edit List/Current price inline; log a date when you cut the price. To <b>add or remove</b> a listing, use the sheet.</p>
+    <p class="legend">Status, photos, sign, lockbox, title, and seller contacts save straight into the Listings table of the tracker. Expand a row for the full checklist. Edit List/Current price inline; log a date when you cut the price. To <b>add or remove</b> a listing, use the tracker.</p>
     <div class="lstats" id="lstats" style="margin:6px 0 12px;font-size:13.5px;color:var(--ink)"></div>
     <div class="ltblhead">
       <div>Property</div><div>Agent</div><div>Status</div><div class="price">List $</div><div class="price">Current $</div><div>Last cut</div><div></div>
@@ -633,7 +633,7 @@ const LISTING_SELECTS={
 /* ---------- live load + save ---------- */
 function setLive(cls,msg){const b=document.getElementById('livebar');b.className='livebar '+cls;b.textContent=msg;if(cls==='ok')setTimeout(()=>{b.className='livebar';},2500);}
 function loadDeals(){
-  setLive('load','Loading from the tracker sheet…');
+  setLive('load','Loading from the tracker…');
   const cb="__ihdeals_"+Date.now();
   window[cb]=function(res){
     const rows=(res&&res.deals)?res.deals:[];
@@ -643,12 +643,12 @@ function loadDeals(){
     MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME);
     TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME);
     recompute(); afterLoad();
-    setLive('ok','✓ Live from the sheet · '+CNT(ACT)+' active · '+LST.length+' listings · '+MY_CLOSED.length+' of your closings');
+    setLive('ok','✓ Live from the tracker · '+CNT(ACT)+' active · '+LST.length+' listings · '+MY_CLOSED.length+' of your closings');
     try{delete window[cb];}catch(e){}
     if(s.parentNode)s.parentNode.removeChild(s);
   };
   const s=document.createElement('script');
-  s.onerror=function(){ setLive('err','Could not reach the tracker sheet. Nothing will save until it is back.'); afterLoad(); };
+  s.onerror=function(){ setLive('err','Could not reach the tracker. Nothing will save until it is back.'); afterLoad(); };
   s.src=BACKEND_ENDPOINT+"?action=list&callback="+cb+"&t="+Date.now();
   document.head.appendChild(s);
 }
@@ -764,7 +764,7 @@ function detail(d,i){
    ${pH?`<div class="block full"><h4>Parties</h4>${pH}</div>`:''}
    ${chH}
    ${noteH}
-   <div class="block full"><h4>Where this lives</h4><div class="sub2">${d._file||''} of the IH Live Transaction Tracker. Edits here save straight back into that row.</div></div>
+   <div class="block full"><h4>Where this lives</h4><div class="sub2">${d._file||''} of the IH Transaction Tracker. Edits here save straight back into that record.</div></div>
    ${dumpH}
    ${reqH}
  </div>`;
