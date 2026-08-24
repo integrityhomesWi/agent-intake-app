@@ -840,27 +840,107 @@ document.getElementById('exp').addEventListener('click',e=>{allOpen=!allOpen;doc
 document.getElementById('refresh').addEventListener('click',loadDeals);
 
 // ====================== GOALS & PIPELINE TAB ======================
-const G_KEY="ihcc_goals_v3";
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const GD_DEFAULT={
-  qGoals:[14,10,11,10],
-  mGoals:[3,5,5,2,3,5,4,4,3,3,3,4],
-  // Was [1,4,3,4,7,0,...] to hand-fill months the old Drive feed knew nothing
-  // about. The Closed 2026 tab now supplies every closing, so these must be
-  // zero or January through May would be counted twice.
-  mManual:[0,0,0,0,0,0,0,0,0,0,0,0],
-  cap:{goal:"$12,000",paid:""},
-  elite:Array.from({length:12},()=>"empty"),
-  sellers:["Wallace – Apr","Hamm – Mar/Apr","Katzel – Mar/Apr","Princeton – unk","CERMA"],
-  buyers:["Hamm","Anderson","Ratzel"],
-  inbound:[{name:"Mellisa",closing:"",contact:""}],
-  outbound:[{name:"",closing:"",contact:""}],
-  vips:["Kallas","Bartol","Pavlik","T. Parr","Grams","Cummar","Rook"]
+// ---------- Goals & Pipeline data layer (live from Airtable) ----------
+// Used to be GD_DEFAULT (hardcoded constants) + localStorage, and the goal
+// numbers got reasserted from GD_DEFAULT on every load regardless of what was
+// saved - see the 2026-08-24 conversation. Now everything here comes from the
+// Monthly Goals / Quarterly Goals / Annual Settings / Pipeline Notes /
+// Referrals / VIP Clients tables via the Worker's ?action=goals endpoint, and
+// edits write straight back to the matching Airtable record - same live
+// pattern as the Deals and Listings tabs.
+let G={
+  qGoals:[0,0,0,0], mGoals:Array(12).fill(0), mManual:Array(12).fill(0),
+  cap:{goal:"",paid:""}, elite:Array(12).fill("empty"),
+  sellers:[], buyers:[], inbound:[], outbound:[], vips:[]
 };
-function loadG(){let g=JSON.parse(JSON.stringify(GD_DEFAULT));try{const s=localStorage.getItem(G_KEY);if(s)g=Object.assign(g,JSON.parse(s));}catch(e){}g.qGoals=GD_DEFAULT.qGoals;g.mGoals=GD_DEFAULT.mGoals;g.mManual=GD_DEFAULT.mManual;return g;}
-let G=loadG();
-function saveG(){localStorage.setItem(G_KEY,JSON.stringify(G));}
+// Parallel Airtable recordIds so edits know which row to write back to.
+let REC={monthly:Array(12).fill(null),quarterly:Array(4).fill(null),annual:null,
+  sellers:[],buyers:[],inbound:[],outbound:[],vips:[]};
+const CUR_YEAR_STR=String(today.getFullYear());
 const gnum=v=>parseInt(v)||0;
+function applyGoalsPayload(res){
+  const monthOf=r=>MONTHS.indexOf(String(r.month||"").split(" ")[0]);
+  G.mGoals=Array(12).fill(0);G.mManual=Array(12).fill(0);G.elite=Array(12).fill("empty");
+  REC.monthly=Array(12).fill(null);
+  (res.monthlyGoals||[]).forEach(r=>{
+    const idx=r.month_order?r.month_order-1:monthOf(r);
+    if(idx<0||idx>11) return;
+    G.mGoals[idx]=Number(r.month_goal)||0;
+    G.mManual[idx]=Number(r.manual_closings_override)||0;
+    G.elite[idx]=r.elite_status||"empty";
+    REC.monthly[idx]=r.recordId;
+  });
+  G.qGoals=[0,0,0,0];REC.quarterly=[null,null,null,null];
+  (res.quarterlyGoals||[]).forEach(r=>{
+    const qi=parseInt(String(r.quarter||"").replace(/[^0-9]/g,""),10)-1;
+    if(qi<0||qi>3) return;
+    G.qGoals[qi]=Number(r.goal)||0;
+    REC.quarterly[qi]=r.recordId;
+  });
+  const yr=(res.annualSettings||[]).find(r=>String(r.year)===CUR_YEAR_STR)||(res.annualSettings||[])[0];
+  if(yr){G.cap={goal:yr.cap_goal?String(yr.cap_goal):"",paid:yr.cap_paid?String(yr.cap_paid):""};REC.annual=yr.recordId;}
+  else{G.cap={goal:"",paid:""};REC.annual=null;}
+  const pn=res.pipelineNotes||[];
+  const sellerRows=pn.filter(r=>/seller/i.test(r.type||""));
+  const buyerRows=pn.filter(r=>/buyer/i.test(r.type||""));
+  G.sellers=sellerRows.map(r=>r.note||"");REC.sellers=sellerRows.map(r=>r.recordId);
+  G.buyers=buyerRows.map(r=>r.note||"");REC.buyers=buyerRows.map(r=>r.recordId);
+  const rf=res.referrals||[];
+  const inRows=rf.filter(r=>/in/i.test(r.direction||""));
+  const outRows=rf.filter(r=>/out/i.test(r.direction||""));
+  G.inbound=inRows.map(r=>({name:r.name||"",closing:r.closing||"",contact:r.contact||""}));REC.inbound=inRows.map(r=>r.recordId);
+  G.outbound=outRows.map(r=>({name:r.name||"",closing:r.closing||"",contact:r.contact||""}));REC.outbound=outRows.map(r=>r.recordId);
+  G.vips=(res.vipClients||[]).map(r=>r.name||"");REC.vips=(res.vipClients||[]).map(r=>r.recordId);
+}
+function loadGoals(cb){
+  const callback="__ihgoals_"+Date.now();
+  window[callback]=function(res){
+    if(res&&res.ok) applyGoalsPayload(res);
+    try{delete window[callback];}catch(e){}
+    if(s.parentNode)s.parentNode.removeChild(s);
+    if(cb)cb();
+  };
+  const s=document.createElement('script');
+  s.onerror=function(){ if(cb)cb(); };
+  s.src=BACKEND_ENDPOINT+"?action=goals&callback="+callback+"&t="+Date.now();
+  document.head.appendChild(s);
+}
+// Fire-and-forget PATCH, same pattern as saveCell() for Deals/Listings.
+function saveGoalField(table,recordId,updates){
+  if(!recordId||!updates||!Object.keys(updates).length) return;
+  try{
+    fetch(BACKEND_ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"saveGoalField",table:table,recordId:recordId,updates:updates})});
+  }catch(e){}
+}
+// Create is a GET+JSONP call (not fire-and-forget) because the caller needs
+// the new recordId back before further edits to that row can save anywhere.
+function addGoalRecord(table,fields,onDone){
+  const callback="__ihgoaladd_"+Date.now();
+  window[callback]=function(res){
+    try{delete window[callback];}catch(e){}
+    if(s.parentNode)s.parentNode.removeChild(s);
+    if(onDone)onDone(res&&res.recordId);
+  };
+  const s=document.createElement('script');
+  s.onerror=function(){ if(onDone)onDone(null); };
+  s.src=BACKEND_ENDPOINT+"?action=addGoalRecord&table="+encodeURIComponent(table)+"&fields="+encodeURIComponent(JSON.stringify(fields))+"&callback="+callback+"&t="+Date.now();
+  document.head.appendChild(s);
+}
+function deleteGoalRecord(table,recordId){
+  if(!recordId) return;
+  try{
+    fetch(BACKEND_ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({action:"deleteGoalRecord",table:table,recordId:recordId})});
+  }catch(e){}
+}
+// Annual Settings has no guaranteed row for the current year yet - create it
+// on first edit instead of silently no-op'ing because REC.annual is null.
+function annualSave(fields){
+  if(REC.annual){ saveGoalField('annualSettings',REC.annual,fields); return; }
+  addGoalRecord('annualSettings',Object.assign({year:CUR_YEAR_STR},fields),(id)=>{ if(id) REC.annual=id; });
+}
 
 const MYNAME="John Reuter";
 // Splits John's deals into closed and still-projected by month. This now keys
@@ -936,10 +1016,10 @@ function renderGoals(){
     col.appendChild(tog);col.appendChild(dlist);
     qc.appendChild(col);
   }
-  qc.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('change',()=>{G.qGoals[+i.dataset.q]=gnum(i.value);saveG();renderGoals();}));
-  qc.querySelectorAll('[data-mg]').forEach(i=>i.addEventListener('change',()=>{G.mGoals[+i.dataset.mg]=gnum(i.value);saveG();renderGoals();}));
-  qc.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.add;G.mManual[m]=gnum(G.mManual[m])+1;saveG();renderGoals();}));
-  qc.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.mm;G.mManual[m]=Math.max(0,gnum(G.mManual[m])-1);saveG();renderGoals();}));
+  qc.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('change',()=>{const qi=+i.dataset.q;G.qGoals[qi]=gnum(i.value);saveGoalField('quarterlyGoals',REC.quarterly[qi],{goal:G.qGoals[qi]});renderGoals();}));
+  qc.querySelectorAll('[data-mg]').forEach(i=>i.addEventListener('change',()=>{const m=+i.dataset.mg;G.mGoals[m]=gnum(i.value);saveGoalField('monthlyGoals',REC.monthly[m],{month_goal:G.mGoals[m]});renderGoals();}));
+  qc.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.add;G.mManual[m]=gnum(G.mManual[m])+1;saveGoalField('monthlyGoals',REC.monthly[m],{manual_closings_override:G.mManual[m]});renderGoals();}));
+  qc.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.mm;G.mManual[m]=Math.max(0,gnum(G.mManual[m])-1);saveGoalField('monthlyGoals',REC.monthly[m],{manual_closings_override:G.mManual[m]});renderGoals();}));
   qc.querySelectorAll('.qtoggle').forEach(t=>t.addEventListener('click',()=>{const el=document.getElementById('qd-'+t.dataset.qd);el.style.display=el.style.display==='none'?'block':'none';}));
   qc.querySelectorAll('.qdl[data-open]').forEach(r=>r.addEventListener('click',()=>openDeal(+r.dataset.open)));
 
@@ -1056,25 +1136,42 @@ function renderCap(){
   const pd=s=>parseFloat((s||'').replace(/[^0-9.]/g,''))||0,f=n=>'$'+n.toLocaleString();
   function upd(){const g=pd(G.cap.goal)||12000,p=pd(G.cap.paid),r=Math.max(0,g-p),pc=Math.min(100,Math.round(p/g*100));
     document.getElementById('cap-r').value=f(r);document.getElementById('cap-pct').textContent=pc+'%';document.getElementById('cap-bar').style.width=pc+'%';document.getElementById('cap-sub').textContent=`${f(p)} of ${f(g)} paid`;}
-  document.getElementById('cap-g').addEventListener('input',e=>{G.cap.goal=e.target.value;saveG();upd();});
-  document.getElementById('cap-p').addEventListener('input',e=>{G.cap.paid=e.target.value;saveG();upd();});
+  document.getElementById('cap-g').addEventListener('input',e=>{G.cap.goal=e.target.value;upd();});
+  document.getElementById('cap-g').addEventListener('change',e=>{annualSave({cap_goal:pd(e.target.value)});});
+  document.getElementById('cap-p').addEventListener('input',e=>{G.cap.paid=e.target.value;upd();});
+  document.getElementById('cap-p').addEventListener('change',e=>{annualSave({cap_paid:pd(e.target.value)});});
   upd();
 }
 const ECY=["empty","red","black","green"];
 function renderElite(){const el=document.getElementById('g-elite');el.innerHTML='';
-  G.elite.forEach((s,i)=>{const b=document.createElement('div');b.className='ebox '+(s==='empty'?'':s);b.addEventListener('click',()=>{G.elite[i]=ECY[(ECY.indexOf(G.elite[i])+1)%4];saveG();renderElite();});el.appendChild(b);});}
+  G.elite.forEach((s,i)=>{const b=document.createElement('div');b.className='ebox '+(s==='empty'?'':s);b.addEventListener('click',()=>{G.elite[i]=ECY[(ECY.indexOf(G.elite[i])+1)%4];saveGoalField('monthlyGoals',REC.monthly[i],{elite_status:G.elite[i]});renderElite();});el.appendChild(b);});}
 function renderLines(){['sellers','buyers'].forEach(k=>{const el=document.getElementById('g-'+k);el.innerHTML='';
-  G[k].forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder=k==='buyers'?'Buyer':'Seller – timing';inp.addEventListener('change',()=>{G[k][i]=inp.value;saveG();});el.appendChild(inp);});});}
+  G[k].forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder=k==='buyers'?'Buyer':'Seller – timing';
+    inp.addEventListener('change',()=>{G[k][i]=inp.value;const rid=REC[k][i];if(rid)saveGoalField('pipelineNotes',rid,{note:inp.value});});
+    el.appendChild(inp);});});}
 function renderVips(){const el=document.getElementById('g-vips');el.innerHTML='';
-  G.vips.forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder='—';inp.addEventListener('change',()=>{G.vips[i]=inp.value;saveG();});el.appendChild(inp);});}
+  G.vips.forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder='—';
+    inp.addEventListener('change',()=>{G.vips[i]=inp.value;const rid=REC.vips[i];if(rid)saveGoalField('vipClients',rid,{name:inp.value});});
+    el.appendChild(inp);});}
 function renderRefs2(){['inbound','outbound'].forEach(t=>{const el=document.getElementById('g-'+t);el.innerHTML='';
   G[t].forEach((r,i)=>{const row=document.createElement('div');row.className='refrow';
-    const n=document.createElement('input');n.value=r.name;n.placeholder=t==='inbound'?'Name / Source':'Name / Agent';n.addEventListener('change',()=>{G[t][i].name=n.value;saveG();});
-    const c=document.createElement('input');c.value=r.closing;c.placeholder='Close';c.addEventListener('change',()=>{G[t][i].closing=c.value;saveG();});
-    const ct=document.createElement('input');ct.value=r.contact;ct.placeholder='Last contact';ct.addEventListener('change',()=>{G[t][i].contact=ct.value;saveG();});
+    const rid=()=>REC[t][i];
+    const n=document.createElement('input');n.value=r.name;n.placeholder=t==='inbound'?'Name / Source':'Name / Agent';
+    n.addEventListener('change',()=>{G[t][i].name=n.value;if(rid())saveGoalField('referrals',rid(),{name:n.value});});
+    const c=document.createElement('input');c.value=r.closing;c.placeholder='Close';
+    c.addEventListener('change',()=>{G[t][i].closing=c.value;if(rid())saveGoalField('referrals',rid(),{closing:c.value});});
+    const ct=document.createElement('input');ct.value=r.contact;ct.placeholder='Last contact';
+    ct.addEventListener('change',()=>{G[t][i].contact=ct.value;if(rid())saveGoalField('referrals',rid(),{contact:ct.value});});
     row.append(n,c,ct);el.appendChild(row);});});}
-document.querySelectorAll('.addln').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.k;G[k].push('');saveG();k==='vips'?renderVips():renderLines();}));
-document.querySelectorAll('.addref').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.k;G[k].push({name:'',closing:'',contact:''});saveG();renderRefs2();}));
+document.querySelectorAll('.addln').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.k;
+  if(k==='vips'){ addGoalRecord('vipClients',{name:''},(id)=>{G.vips.push('');REC.vips.push(id);renderVips();}); }
+  else { const typeLabel=k==='buyers'?'Buyer':'Seller'; addGoalRecord('pipelineNotes',{note:'',type:typeLabel},(id)=>{G[k].push('');REC[k].push(id);renderLines();}); }
+}));
+document.querySelectorAll('.addref').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.k; const direction=k==='inbound'?'Inbound':'Outbound';
+  addGoalRecord('referrals',{name:'',direction:direction},(id)=>{G[k].push({name:'',closing:'',contact:''});REC[k].push(id);renderRefs2();});
+}));
 // ====================== LISTINGS TAB ======================
 // LST is loaded from the sheet's Listings tab in loadDeals. It used to be a
 // 17-row hardcoded LISTINGS_SEED saved into browser localStorage, which meant
@@ -1183,6 +1280,7 @@ document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
 // go live
 loadDeals();
 loadSchema();
+loadGoals(()=>{ if(document.getElementById('view-goals').classList.contains('active')) renderGoals(); });
 </script>
 </body>
 </html>
