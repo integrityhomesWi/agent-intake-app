@@ -1003,7 +1003,7 @@ function renderGci(){
   const missing=srcs.reduce((s,k)=>s+bySrc[k].untracked,0);
   const basis=GCI_BASIS==='net'?'Net commission':'Gross commission (GCI)';
   document.getElementById('gci-note').innerHTML=`${basis} on closed deals, ${today.getFullYear()} year to date.`
-    +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count':'it counts'} as a deal but adds nothing to the totals.`:'');
+    +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count as deals but add':'it counts as a deal but adds'} nothing to the totals.`:'');
 }
 document.getElementById('gci-tabs').addEventListener('click',e=>{
   const b=e.target.closest('.gcitab'); if(!b) return;
