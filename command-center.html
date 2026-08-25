@@ -873,7 +873,12 @@ function applyGoalsPayload(res){
   });
   G.qGoals=[0,0,0,0];REC.quarterly=[null,null,null,null];
   (res.quarterlyGoals||[]).forEach(r=>{
-    const qi=parseInt(String(r.quarter||"").replace(/[^0-9]/g,""),10)-1;
+    // Match the digit attached to the Q, not every digit in the string: the
+    // Quarter field reads "Q1 2026", and stripping all non-digits turned that
+    // into 12026, which failed the range check below and silently dropped
+    // every quarterly goal - the tracker then read "26 / 0".
+    const qm=String(r.quarter||"").match(/Q\s*([1-4])/i);
+    const qi=qm?Number(qm[1])-1:-1;
     if(qi<0||qi>3) return;
     G.qGoals[qi]=Number(r.goal)||0;
     REC.quarterly[qi]=r.recordId;
@@ -1083,7 +1088,7 @@ function renderGci(){
   const missing=srcs.reduce((s,k)=>s+bySrc[k].untracked,0);
   const basis=GCI_BASIS==='net'?'Net commission':'Gross commission (GCI)';
   document.getElementById('gci-note').innerHTML=`${basis} on closed deals, ${today.getFullYear()} year to date.`
-    +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count':'it counts'} as a deal but adds nothing to the totals.`:'');
+    +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count as deals but add':'it counts as a deal but adds'} nothing to the totals.`:'');
 }
 document.getElementById('gci-tabs').addEventListener('click',e=>{
   const b=e.target.closest('.gcitab'); if(!b) return;
