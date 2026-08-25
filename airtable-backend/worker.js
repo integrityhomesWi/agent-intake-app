@@ -37,7 +37,7 @@
 
 // Bump this on every deploy. The root response reports it, so we can confirm
 // from the outside which build is actually live instead of guessing.
-const BUILD = 'airtable-1';
+const BUILD = 'airtable-2';
 
 const BASE_ID = 'appVvzwT3K2OTwRgR';
 const TABLES = {
@@ -46,6 +46,32 @@ const TABLES = {
   buyerlead: { id: 'tblJdlC8bLaLTUrfd', name: 'Buyer Leads' },
   closed: { id: 'tblnwjW8sSF3rCmAC', name: 'Closed Deals' }
 };
+// The Goals & Pipeline area. These six tables replaced what used to live only
+// in the Command Center's browser localStorage, so the numbers now follow John
+// across devices instead of being trapped in one browser profile.
+const GOAL_TABLES = {
+  monthlyGoals: { id: 'tblVHDOIxp9pbPkf5', name: 'Monthly Goals' },
+  quarterlyGoals: { id: 'tblcrhXn0RbyIqGsC', name: 'Quarterly Goals' },
+  annualSettings: { id: 'tblJqzVjQcB7HoMYm', name: 'Annual Settings' },
+  pipelineNotes: { id: 'tbl1RI6Sx0xeCxfgu', name: 'Pipeline Notes' },
+  referrals: { id: 'tble26gifQRtASsMa', name: 'Referrals' },
+  vipClients: { id: 'tblSzJ1jxA4TkbvZT', name: 'VIP Clients' }
+};
+const COLS_MONTHLY_GOALS = ['Month', 'Month Order', 'Quarter', 'Month Goal', 'Elite Status', 'Manual Closings Override'];
+const COLS_QUARTERLY_GOALS = ['Quarter', 'Goal'];
+const COLS_ANNUAL_SETTINGS = ['Year', 'Cap Goal', 'Cap Paid'];
+const COLS_PIPELINE_NOTES = ['Note', 'Type'];
+const COLS_REFERRALS = ['Name', 'Direction', 'Closing', 'Contact'];
+const COLS_VIP_CLIENTS = ['Name'];
+const GOAL_COLS_FOR = {
+  monthlyGoals: COLS_MONTHLY_GOALS,
+  quarterlyGoals: COLS_QUARTERLY_GOALS,
+  annualSettings: COLS_ANNUAL_SETTINGS,
+  pipelineNotes: COLS_PIPELINE_NOTES,
+  referrals: COLS_REFERRALS,
+  vipClients: COLS_VIP_CLIENTS
+};
+
 // Maps the tab names the frontend already sends (unchanged from the Sheet
 // era) to the source key used internally and in ?action=list output.
 const TAB_NAME_TO_SOURCE = {
@@ -300,6 +326,87 @@ async function closeDeal_(env, address, closedDate) {
   return { ok: true, moved: f['Address'], closedDate: closedDate || f['Closing Date'] };
 }
 
+/* ---------------- Goals & Pipeline ---------------- */
+// Same read/write shape as the deal tables above, but keyed by Airtable's own
+// recordId rather than a primary-field string: these rows (a month goal, a VIP
+// name) have no naturally unique text to match on the way an address does.
+
+async function listGoalTable_(env, tableKey) {
+  const table = GOAL_TABLES[tableKey];
+  const cols = GOAL_COLS_FOR[tableKey];
+  let out = [];
+  let offset;
+  do {
+    const qs = 'pageSize=100' + (offset ? '&offset=' + encodeURIComponent(offset) : '');
+    const body = await atFetch_(env, '/' + table.id + '?' + qs, { method: 'GET' });
+    out = out.concat(body.records || []);
+    offset = body.offset;
+  } while (offset);
+  return out.map(rec => {
+    const flat = { recordId: rec.id };
+    cols.forEach(name => {
+      const v = rec.fields[name];
+      // singleSelect fields come back as {id,name,color} - flatten to the name.
+      flat[slugCol_(name)] = (v && typeof v === 'object' && !Array.isArray(v) && v.name !== undefined)
+        ? v.name
+        : ((v === undefined || v === null) ? '' : v);
+    });
+    return flat;
+  });
+}
+
+async function listGoals_(env) {
+  const [monthlyGoals, quarterlyGoals, annualSettings, pipelineNotes, referrals, vipClients] = await Promise.all([
+    listGoalTable_(env, 'monthlyGoals'),
+    listGoalTable_(env, 'quarterlyGoals'),
+    listGoalTable_(env, 'annualSettings'),
+    listGoalTable_(env, 'pipelineNotes'),
+    listGoalTable_(env, 'referrals'),
+    listGoalTable_(env, 'vipClients')
+  ]);
+  return { monthlyGoals, quarterlyGoals, annualSettings, pipelineNotes, referrals, vipClients };
+}
+
+async function saveGoalField_(env, tableKey, recordId, updates) {
+  const table = GOAL_TABLES[tableKey];
+  if (!table) return { ok: false, error: 'no such goals table: ' + tableKey };
+  if (!recordId) return { ok: false, error: 'no recordId given for ' + tableKey };
+  const cols = GOAL_COLS_FOR[tableKey];
+  const fields = {};
+  const unmatched = [];
+  Object.keys(updates || {}).forEach(slug => {
+    const colName = cols.find(c => slugCol_(c) === slugCol_(slug));
+    if (!colName) { unmatched.push(slug); return; }
+    fields[colName] = updates[slug];
+  });
+  if (unmatched.length) return { ok: false, error: 'no matching column for: ' + unmatched.join(', ') };
+  await atFetch_(env, '/' + table.id + '/' + recordId, { method: 'PATCH', body: JSON.stringify({ fields, typecast: true }) });
+  return { ok: true };
+}
+
+async function addGoalRecord_(env, tableKey, valuesBySlug) {
+  const table = GOAL_TABLES[tableKey];
+  if (!table) return { ok: false, error: 'no such goals table: ' + tableKey };
+  const cols = GOAL_COLS_FOR[tableKey];
+  const fields = {};
+  Object.keys(valuesBySlug || {}).forEach(slug => {
+    const colName = cols.find(c => slugCol_(c) === slugCol_(slug));
+    if (colName && valuesBySlug[slug] !== '' && valuesBySlug[slug] !== undefined && valuesBySlug[slug] !== null) {
+      fields[colName] = valuesBySlug[slug];
+    }
+  });
+  const body = await atFetch_(env, '/' + table.id, { method: 'POST', body: JSON.stringify({ records: [{ fields }], typecast: true }) });
+  return { ok: true, recordId: body.records[0].id };
+}
+
+async function deleteGoalRecord_(env, tableKey, recordId) {
+  const table = GOAL_TABLES[tableKey];
+  if (!table) return { ok: false, error: 'no such goals table: ' + tableKey };
+  if (!recordId) return { ok: false, error: 'no recordId given for ' + tableKey };
+  await atFetch_(env, '/' + table.id + '/' + recordId, { method: 'DELETE' });
+  return { ok: true };
+}
+
 /* ---------------- voice conversation (Claude) ---------------- */
 // Ported straight from google-sheets-backend.gs's converse_ - same prompt,
 // same tool schema, same rules. Only the HTTP call mechanics changed
@@ -410,6 +517,19 @@ export default {
           const res = await closeDeal_(env, p.address, p.closedDate);
           return json_(res);
         }
+        if (p.action === 'goals') {
+          const payload = { ok: true, ...(await listGoals_(env)) };
+          return p.callback ? js_(p.callback, payload) : json_(payload);
+        }
+        // Create is offered over GET as well as POST: the Command Center needs
+        // the new recordId back before any later edit to that row can save, and
+        // its POSTs are fire-and-forget no-cors (no readable response).
+        if (p.action === 'addGoalRecord' && p.table) {
+          let fields = {};
+          try { fields = JSON.parse(p.fields || '{}'); } catch (e) {}
+          const res = await addGoalRecord_(env, p.table, fields);
+          return p.callback ? js_(p.callback, res) : json_(res);
+        }
         return json_({ ok: true, service: 'Integrity Homes Airtable backend', build: BUILD, ready: true });
       }
 
@@ -426,6 +546,18 @@ export default {
         }
         if (data.action === 'converse') {
           return json_(await converse_(env, data));
+        }
+        if (data.action === 'saveGoalField') {
+          const res = await saveGoalField_(env, data.table, data.recordId, data.updates || {});
+          return json_(res);
+        }
+        if (data.action === 'addGoalRecord') {
+          const res = await addGoalRecord_(env, data.table, data.fields || {});
+          return json_(res);
+        }
+        if (data.action === 'deleteGoalRecord') {
+          const res = await deleteGoalRecord_(env, data.table, data.recordId);
+          return json_(res);
         }
         return json_({ ok: false, error: 'nothing to do' });
       }
