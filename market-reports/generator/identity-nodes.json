@@ -1,0 +1,26 @@
+[
+  {
+    "@type": ["Organization", "RealEstateAgent"],
+    "@id": "https://integrityhomeswi.com/#org",
+    "name": "John Reuter - Integrity Homes",
+    "url": "https://integrityhomeswi.com/",
+    "logo": "https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/h200_20251213_d2364072487347e4-png.webp",
+    "telephone": "+1-608-669-4226"
+  },
+  {
+    "@type": "Person",
+    "@id": "https://integrityhomeswi.com/#john",
+    "name": "John Reuter",
+    "jobTitle": "Broker/Owner",
+    "url": "https://integrityhomeswi.com/about",
+    "worksFor": { "@id": "https://integrityhomeswi.com/#org" }
+  },
+  {
+    "@type": "WebSite",
+    "@id": "https://integrityhomeswi.com/#website",
+    "url": "https://integrityhomeswi.com/",
+    "name": "Integrity Homes",
+    "publisher": { "@id": "https://integrityhomeswi.com/#org" },
+    "inLanguage": "en-US"
+  }
+]

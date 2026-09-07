@@ -116,7 +116,19 @@
       "Bash(cp google-sheets-backend.gs \"/c/Users/admin/AppData/Local/Temp/claude/C--Users-admin-OneDrive-Desktop-Intake/e46f39d3-b59f-4f99-9ab8-d99cff1ed4d5/scratchpad/sheets6.js\")",
       "Bash(node --check \"/c/Users/admin/AppData/Local/Temp/claude/C--Users-admin-OneDrive-Desktop-Intake/e46f39d3-b59f-4f99-9ab8-d99cff1ed4d5/scratchpad/sheets6.js\")",
       "Bash(python -X utf8 -c ' *)",
-      "mcp__claude_ai_Google_Drive__get_file_metadata"
+      "mcp__claude_ai_Google_Drive__get_file_metadata",
+      "Bash(SCRATCH=\"/c/Users/admin/AppData/Local/Temp/claude/C--Users-admin-OneDrive-Desktop-Intake/e46f39d3-b59f-4f99-9ab8-d99cff1ed4d5/scratchpad\" *)",
+      "mcp__c9042c64-357d-4bfd-b78b-d438bff5480c__create_draft",
+      "Bash(gh auth *)",
+      "Bash(gh --version)",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__file_upload",
+      "Bash(echo \"TIMED_OUT_OR_FAILED exit=$?\")",
+      "Bash(taskkill //F //IM git-credential-manager.exe)",
+      "Bash(taskkill //F //IM git.exe)",
+      "Bash(split -b 15000 intake_b64.txt intake_chunk_)",
+      "Bash(taskkill //F //IM node.exe)",
+      "mcp__claude-in-chrome__browser_batch"
     ]
   }
 }

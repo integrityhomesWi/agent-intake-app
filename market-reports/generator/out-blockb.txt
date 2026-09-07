@@ -1,0 +1,45 @@
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": [
+        "NGO",
+        "Organization"
+      ],
+      "@id": "https://rewardourheroes.com/#org",
+      "name": "Reward Our Heroes",
+      "alternateName": "Reward Our Heroes™",
+      "url": "https://rewardourheroes.com",
+      "description": "A 501(c)(3) nonprofit founded by John Reuter, supporting veterans, first responders, teachers, and healthcare workers in Wisconsin through real estate savings and community initiatives.",
+      "nonprofitStatus": "Nonprofit501c3",
+      "taxID": "39-3358820",
+      "areaServed": {
+        "@type": "State",
+        "name": "Wisconsin"
+      },
+      "founder": {
+        "@id": "https://integrityhomeswi.com/#john"
+      },
+      "sponsor": {
+        "@id": "https://integrityhomeswi.com/#org"
+      }
+    },
+    {
+      "@type": [
+        "PodcastSeries",
+        "CreativeWork"
+      ],
+      "@id": "https://theveteranrealtor.com/#org",
+      "name": "The Veteran Realtor Podcast",
+      "url": "https://theveteranrealtor.com",
+      "author": {
+        "@id": "https://integrityhomeswi.com/#john"
+      },
+      "producer": {
+        "@id": "https://integrityhomeswi.com/#org"
+      }
+    }
+  ]
+}
+</script>

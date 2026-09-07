@@ -1,0 +1,264 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#article",
+      "headline": "Madison, Wisconsin Housing Market Report — September 2026",
+      "description": "Monthly real estate market report for Madison, WI based on SCWMLS city-area data. Median sale price $440,000, 203 sales, 1.96 months of supply as of September 1, 2026.",
+      "datePublished": "2025-12-01",
+      "dateModified": "2026-09-01",
+      "author": {
+        "@id": "https://integrityhomeswi.com/#johnreuter"
+      },
+      "publisher": {
+        "@id": "https://integrityhomeswi.com/#organization"
+      },
+      "mainEntityOfPage": {
+        "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#webpage"
+      },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": [
+          ".market-hero-intro",
+          ".tldr-box",
+          ".speakable-answer",
+          ".faq-a"
+        ]
+      },
+      "mentions": [
+        {
+          "@type": "Place",
+          "name": "Madison, Wisconsin"
+        },
+        {
+          "@type": "Place",
+          "name": "Dane County, Wisconsin"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#webpage",
+      "url": "https://integrityhomeswi.com/market-reports/madison-wisconsin/",
+      "name": "Madison, Wisconsin Housing Market Report — September 2026",
+      "datePublished": "2025-12-01",
+      "dateModified": "2026-09-01",
+      "isPartOf": {
+        "@id": "https://integrityhomeswi.com/#website"
+      },
+      "significantLink": [
+        "https://integrityhomeswi.com/madison/",
+        "https://integrityhomeswi.com/homes-for-sale/madison-wisconsin/",
+        "https://integrityhomeswi.com/evaluation",
+        "https://integrityhomeswi.com/schools/madison-metropolitan-school-district/",
+        "https://www.rewardourheroes.com/calculator-page",
+        "https://integrityhomeswi.com/buyer-loan-programs/va"
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://integrityhomeswi.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Market Reports",
+          "item": "https://integrityhomeswi.com/market-reports/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Madison, WI",
+          "item": "https://integrityhomeswi.com/market-reports/madison-wisconsin/"
+        }
+      ]
+    },
+    {
+      "@type": "Place",
+      "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#place",
+      "name": "Madison, Wisconsin",
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 43.0731,
+        "longitude": -89.4012
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Madison",
+        "addressRegion": "WI",
+        "postalCode": "53703",
+        "addressCountry": "US"
+      },
+      "containedInPlace": {
+        "@type": "Place",
+        "name": "Dane County, Wisconsin"
+      }
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#marketsnapshot",
+      "name": "Madison, WI Housing Market Snapshot — September 2026",
+      "description": "SCWMLS city-area data for Madison, Wisconsin based on August 2026 closings, snapshot taken September 1, 2026.",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "creator": {
+        "@id": "https://integrityhomeswi.com/#organization"
+      },
+      "variableMeasured": [
+        {
+          "@type": "PropertyValue",
+          "name": "Median Sale Price",
+          "value": "$440,000"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Average Sale Price",
+          "value": "$494,455"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Median Days on Market",
+          "value": "8"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Months of Supply",
+          "value": "1.96"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Active Listings",
+          "value": "436"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Sales Count",
+          "value": "203"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Total Volume",
+          "value": "$100,374,371"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Average Price Per SqFt",
+          "value": "$282"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Average Percent Over Asking",
+          "value": "0.43%"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://integrityhomeswi.com/market-reports/madison-wisconsin/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the median home price in Madison, WI right now?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The median sale price in Madison was $440,000 in August 2026, up 8.6% from the prior year. Year-to-date through September 2026, the median also sits at $440,000 — up 3.5% from 2025's full-year figure of $424,900."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How long does it take to sell a house in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The median days on market was 8 days in August 2026 — unchanged year-over-year. Half of all homes sold went under contract within eight days of listing. The average of 20 days reflects a smaller group of slower-moving listings pulling the average up."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Madison, WI a buyer's or seller's market right now?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Madison is an Extreme Seller's Market. With 1.96 months of supply — well below the 2-month threshold for that tier — sellers hold significant leverage. Buyers are still paying an average of 0.43% over asking price across the city, with several upper price brackets running well over 2% over list."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How many homes sold in Madison in August 2026?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "203 homes sold in August 2026, down 13.6% from 235 sales in August 2025. Total volume was $100,374,371 — down 6.5% year-over-year, reflecting fewer transactions rather than falling prices."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the cheapest area to buy a home in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In August 2026, zip 53704 had the lowest median sale among higher-volume zips at $394,900 (29 sales) — also the most active zip in the city by transaction count. Zip 53714 traded slightly lower at $395,000 on a smaller sample of 13 sales."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which Madison zip code has the most expensive homes?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Zip 53705 posted the highest median among higher-volume zips at $685,000 in August 2026, off 14 sales. Zip 53717 followed at $515,000 (16 sales) and 53711 at $513,250 (19 sales)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Are home prices going up or down in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Up. Prices rose 8.6% year-over-year to $440,000 in August 2026. Madison has posted consistent gains since 2018, when the median was $260,000 — a 69% increase over eight years."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Should I wait for interest rates to drop before buying in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The risk of waiting in Madison is real. Prices have increased every year since 2018. If rates drop and you refinance later, you're still ahead. If prices rise another 5–8% while you wait — roughly Madison's recent annual pace — the savings may not offset the higher purchase price. Buy when the payment makes sense, and refinance when rates improve."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How many homes are currently for sale in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "As of September 1, 2026, there are 436 active listings in Madison and 101 homes pending. The median time from list to pending is 8 days."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What price range is most competitive in Madison right now?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The $300,000–$399,999 range is the tightest, with just 1.61 months of supply and 82 active listings against 51 average sales per month. The $400,000–$499,999 range is close behind at 1.68 months and is the most active bracket overall, with 104 active listings and 62 average sales per month."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can buyers negotiate on price in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "In most price ranges, not easily. The city-wide average was 0.43% over asking in August. Buyers at the entry level have a bit more room — the $100,000–$199,999 bracket has recently traded around 1.0% under asking. In other ranges, focus your negotiation on terms rather than price."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is now a good time to sell a home in Madison?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Median DOM of 8 days, 1.96 months of supply, and buyers still paying over asking in most brackets — these are solid seller conditions. Price competitively, present well, and Madison's market will do the rest."
+          }
+        }
+      ]
+    }
+  ]
+}
