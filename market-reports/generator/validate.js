@@ -1,6 +1,9 @@
 const fs = require("fs");
 const D = require("./data.js");
-const OUT = "C:/Users/admin/Downloads/market-reports-september-2026";
+// Take the output directory from build.js, never a literal. This was hardcoded to the
+// September folder through the whole October run, so the validator kept reporting
+// "ALL PAGES VALID" while reading last month's files.
+const OUT = require("./build.js").OUT;
 
 // Every path verified HTTP 200 on 2026-09-01.
 const LIVE = new Set([
@@ -61,6 +64,14 @@ for (const file of fs.readdirSync(OUT).filter(f => f.endsWith(".html"))) {
   if (d.length > 155) bad(`${name}: meta ${d.length} chars`);
   if (/\b(19|20)\d\d\b/.test(t) || /january|february|march|april|may|june|july|august|september|october|november|december/i.test(t))
     bad(`${name}: dated title "${t}"`);
+
+  // Titles and metas must be EVERGREEN. A figure baked into them is true for one month
+  // and quietly false for every month after, and the six-week no-touch rule means nobody
+  // goes back to check. October 2026: five of seven pages were still carrying September
+  // figures here, and Middleton's said buyers paid "over asking" when they paid under.
+  // A digit in either field is the signal, so a digit in either field fails the build.
+  if (/\d/.test(t)) bad(`${name}: title carries a figure, must be evergreen: "${t}"`);
+  if (/\d/.test(d)) bad(`${name}: meta carries a figure, must be evergreen: "${d}"`);
 
   // 4. every internal link is verified-live
   const links = [...html.matchAll(/href="https:\/\/integrityhomeswi\.com([^"]*)"/g)].map(x => x[1] || "/");

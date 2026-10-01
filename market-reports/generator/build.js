@@ -15,11 +15,11 @@ const IMG = "https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbui
 
 const TITLES = {
  Madison:["Is Madison a Buyer's or Seller's Market Right Now?","See where Madison home prices, days on market, and inventory supply stand right now, plus how each zip code and price range differs. Updated monthly."],
- Waunakee:["Waunakee Homes Now Take 29 Days to Sell, Not 9","Waunakee's median sale price rose to $690,000 while homes went from 9 days on market to 29. What the slower pace means for buyers and sellers."],
- "Sun Prairie":["Is Sun Prairie Still the Value Play in Dane County?","Sun Prairie homes go under contract in 8 days at a $425,000 median, with price per square foot up 6.7%. See how it compares across price ranges."],
- Verona:["Verona Home Values Up 18% Per Square Foot","Verona's median reached $575,000 with just 44 homes for sale. See which price ranges are tightest and where there is nothing available at all."],
- Middleton:["Is Middleton Worth Its Dane County Premium?","Middleton buyers paid over asking on a $681,000 median while the entry level nearly sold out. See the full price range and zip code breakdown."],
- DeForest:["DeForest Was the Only Dane County Market to Grow","DeForest sales rose 15% while every other community fell, on a $470,000 median. See days on market, supply by price range, and what it means."],
+ Waunakee:["Is Waunakee Worth the Price Premium Right Now?","Waunakee runs on tight inventory and a school district buyers chase. See where prices, days on market, and supply by price range stand right now."],
+ "Sun Prairie":["Is Sun Prairie Still the Value Play in Dane County?","Sun Prairie still delivers more house per dollar than the Madison west side. See current prices, days on market, and supply by price range."],
+ Verona:["Is Verona the Hardest Dane County Market to Buy In?","Epic Systems keeps Verona demand steady year round. See where prices, days on market, and inventory stand, and which price ranges are tightest."],
+ Middleton:["Is Middleton Worth Its Dane County Premium?","Middleton holds a premium across every price range. See where prices, days on market, and supply stand now, and where buyers have real leverage."],
+ DeForest:["Is DeForest the Best Value North of Madison?","DeForest offers some of the most attainable home values north of the city. See current prices, days on market, and supply by price range."],
  "Dane County":["Which Dane County Suburb Has the Tightest Housing Market?","Compare median price, days on market, and months of supply across Madison, Waunakee, Sun Prairie, Verona, Middleton, and DeForest. Updated monthly."]
 };
 

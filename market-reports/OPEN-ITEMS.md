@@ -16,6 +16,9 @@ Last updated 2026-10-01, after the October build.
 - **Six hardcoded `September 1, 2026` strings** in `render.js` drove the hero freshness badge and both source lines. They would have shipped stale on all seven October pages. Now derived from `D.snapshot`.
 - Airtable token rotation: **dropped.** Claim came from an unreliable session; repo and full git history scanned clean. Revisit only if John recalls a token actually being on screen.
 
+- **Titles and metas were stale on five of seven pages.** They carried September figures, and Middleton's meta said buyers paid "over asking" when October shows 2.03% under. All seven are now evergreen questions with no figures at all, which is also the format with the best measured CTR on this site. `validate.js` now fails the build if a digit appears in either field.
+- **`validate.js` was reading the wrong folder.** It had its own hardcoded path to `market-reports-september-2026`, so it reported "ALL PAGES VALID" against last month's files for the entire October run. It now takes `OUT` from `build.js`.
+
 ## Known data caveats carried into the October pages
 - **Madison prior-year DOM.** Airtable has Median DOM 10, YoY 0, and Prior Year Median DOM 11, which cannot all be true. Six of seven markets are internally consistent; only Madison is not. Built with prior = 10 to match the PDF headline ("0 from previous year"). Worth correcting the Airtable field.
 - **Per-zip "% over asking" omitted.** The column came out of the PDF as 25 values for 26 slots and could not be split into current vs year-over-year. Dropped rather than guessed.
