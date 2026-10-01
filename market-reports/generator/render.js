@@ -4,6 +4,10 @@ const S = require("./sections.js");
 const { esc, money, pct, signed, days, cls, arrow, monthName, graph, gauge, bars, yoyChart, faqs,
         TITLES, SITE, HUB, EVAL, ABOUT, CONTACT, ROH, IMG, OUT, D, N } = B;
 
+// Visible snapshot date, derived so the hero badge can never drift from the schema.
+const SNAP = new Date(D.snapshot + "T12:00:00Z").toLocaleDateString("en-US",
+  { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+
 const CSS = `
 :root{--color-primary:#1e3a5f;--color-primary-dark:#152a45;--color-accent:#c9a227;--color-accent-hover:#b89220;--color-text:#2d3748;--color-text-light:#4a5568;--color-text-muted:#718096;--color-bg-soft:#f7fafc;--color-border:#e2e8f0;--color-hot:#dc2626;--color-success:#16a34a;--font-heading:'Playfair Display',Georgia,serif;--font-body:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--shadow-md:0 10px 30px rgba(0,0,0,.12);--radius-lg:16px;--radius-md:14px;--max-width:1100px;--section-spacing:3.1rem}
 .market-report *,.market-report *::before,.market-report *::after{box-sizing:border-box}
@@ -185,12 +189,28 @@ function renderCity(city, v) {
 
   const bracketRows = v.brackets.map(([lbl, sup]) => {
     if (sup === 0) return `<tr class="none-row"><td>${esc(lbl)}</td><td colspan="2">nothing available, no active listings</td></tr>`;
-    const hot = lbl === v.tight && sup === v.tightSup;
-    return `<tr${hot ? ' class="hot-row"' : ""}><td>${esc(lbl)}</td><td>${sup.toFixed(2)}</td><td>${hot ? "Tightest" : ""}</td></tr>`;
+    // Hot zone is strictly under 1.0 month. A band at exactly 1.00 is not hot.
+    // Tightest is whichever non-empty band is lowest, which may or may not be hot.
+    const hot = sup < 1;
+    const tightest = lbl === v.tight;
+    const note = hot ? "Hot zone" : tightest ? "Tightest" : "";
+    return `<tr${hot || tightest ? ' class="hot-row"' : ""}><td>${esc(lbl)}</td><td>${sup.toFixed(2)}</td><td>${note}</td></tr>`;
   }).join("\n              ");
 
-  const zipRows = v.zips.map(([z, s, m, d]) =>
-    `<tr><td><strong>${z}</strong></td><td>${s}</td><td>${money(m)}</td><td>${d}</td></tr>`).join("\n              ");
+  // Fewer than ten sales in a zip is a small sample: shown for completeness, never featured.
+  const SMALL = 10;
+  const zipRows = v.zips.map(([z, s, m, d, psf]) =>
+    `<tr${s < SMALL ? ' class="none-row"' : ""}><td><strong>${z}</strong>${s < SMALL ? " *" : ""}</td><td>${s}</td><td>${money(m)}</td><td>${d}</td><td>${psf ? "$" + psf : "n/a"}</td></tr>`).join("\n              ");
+  const smallZips = v.zips.filter(z => z[1] < SMALL).length;
+  const zipBlock = v.zips.length ? `
+        <h3>Zip Code Detail: ${esc(D.closings)}</h3>
+        <div class="table-scroll"><table class="mr-table">
+          <thead><tr><th>Zip</th><th>Sales</th><th>Median Sale</th><th>Median DOM</th><th>$/SqFt</th></tr></thead>
+          <tbody>
+              ${zipRows}
+          </tbody>
+        </table></div>
+        <p class="footnote">Zip totals cover the reported zip areas and may not sum to the city figure, which includes fringe transactions.${smallZips ? ` Rows marked with an asterisk closed fewer than ${SMALL} homes in ${esc(D.closings)}. At that volume the median moves on which few houses happened to sell, so they are listed for completeness rather than read as a trend.` : ""}</p>` : "";
 
   const archive = ""; // 26 of 28 dated URLs are JS redirect stubs back to this page. Linking them is circular.
 
@@ -214,7 +234,7 @@ function renderCity(city, v) {
         <a href="${SITE}${v.hfs}" class="mr-pill">Browse Homes</a>
       </div>
       <p class="mr-kicker" style="color:#fff;opacity:.72;font-size:.78rem;letter-spacing:.05em;">${esc(D.label)}</p>
-      <p class="mr-freshness">Created: December 1, 2025 | Last updated: September 1, 2026</p>
+      <p class="mr-freshness">Created: December 1, 2025 | Last updated: ${SNAP}</p>
       <div class="mr-stats-strip">
         <div class="mr-stat-item"><span class="mr-stat-num">${money(v.med)}</span><span class="mr-stat-label">Median Sale</span></div>
         <div class="mr-stat-item"><span class="mr-stat-num">${v.dom}</span><span class="mr-stat-label">Median DOM</span></div>
@@ -237,7 +257,7 @@ function renderCity(city, v) {
         ${stats}
       </div>
       <div class="tldr-box"><span aria-hidden="true">●</span> ${esc(n.summary)}</div>
-      <p class="source-line">Data source: SCWMLS city-area data for ${esc(city)}, WI. ${esc(D.closings)} closings, snapshot September 1, 2026. Data deemed reliable but not guaranteed.</p>
+      <p class="source-line">Data source: SCWMLS city-area data for ${esc(city)}, WI. ${esc(D.closings)} closings, snapshot ${SNAP}. Data deemed reliable but not guaranteed.</p>
     </div>
 
     <div class="mr-cta-banner">
@@ -309,14 +329,7 @@ function renderCity(city, v) {
           </tbody>
         </table></div>
         ${emptyNote}
-        <h3>Zip Code Detail: ${esc(D.closings)}</h3>
-        <div class="table-scroll"><table class="mr-table">
-          <thead><tr><th>Zip</th><th>Sales</th><th>Median Sale</th><th>Median DOM</th></tr></thead>
-          <tbody>
-              ${zipRows}
-          </tbody>
-        </table></div>
-        <p class="footnote">Zip totals cover the reported zip areas and may not sum to the city figure, which includes fringe transactions.</p>
+        ${zipBlock}
         <div class="mr-chart-wrap"><p class="mr-chart-title">Year Over Year Comparison: ${esc(city)}</p>${yoyChart(v, city)}</div>
         <h3>Methodology</h3>
         <p style="font-size:.88rem;color:#4a5568;">All market data sourced from the South Central Wisconsin MLS (SCWMLS), filtered to the ${esc(city)} city area. Monthly figures reflect closed transactions recorded in ${esc(D.closings)}. Months of supply is active listings divided by the twelve month average sales per month. Year over year compares ${esc(D.closings)} with the same month a year earlier. Data deemed reliable but not guaranteed.</p>
@@ -346,7 +359,7 @@ function renderCity(city, v) {
       <a href="${SITE}${HUB}" class="btn btn-outline">Dane County Report</a>
       <a href="${SITE}${CONTACT}" class="btn btn-outline">Contact</a>
     </div>
-    <p class="mr-footer-source">Data source: South Central Wisconsin MLS (SCWMLS), filtered to the ${esc(city)} city area. ${esc(D.closings)} closings. Snapshot date: September 1, 2026. Data deemed reliable but not guaranteed. Integrity Homes of Wisconsin is Powered by Real Broker, LLC.</p>
+    <p class="mr-footer-source">Data source: South Central Wisconsin MLS (SCWMLS), filtered to the ${esc(city)} city area. ${esc(D.closings)} closings. Snapshot date: ${SNAP}. Data deemed reliable but not guaranteed. Integrity Homes of Wisconsin is Powered by Real Broker, LLC.</p>
   </div></div>
 </div>
 ${S.stickyBar(city, v)}`;
@@ -376,7 +389,7 @@ function renderHub() {
     <h1>Dane County, Wisconsin Housing Market</h1>
     <p class="market-hero-intro">${esc(n.intro)}</p>
     <p class="mr-kicker" style="color:#fff;opacity:.72;font-size:.78rem;letter-spacing:.05em;">${esc(D.label)}</p>
-    <p class="mr-freshness">Created: December 1, 2025 | Last updated: September 1, 2026</p>
+    <p class="mr-freshness">Created: December 1, 2025 | Last updated: ${SNAP}</p>
     <div class="mr-stats-strip">
       <div class="mr-stat-item"><span class="mr-stat-num">${money(v.med)}</span><span class="mr-stat-label">County Median</span></div>
       <div class="mr-stat-item"><span class="mr-stat-num">${v.dom}</span><span class="mr-stat-label">Median DOM</span></div>
@@ -400,7 +413,7 @@ function renderHub() {
         </tbody>
       </table></div>
       <div class="tldr-box"><span aria-hidden="true">●</span> ${esc(n.summary)}</div>
-      <p class="source-line">Data source: SCWMLS, ${esc(D.closings)} closings, snapshot September 1, 2026. Each community is reported by its city area, the standard SCWMLS unit. Data deemed reliable but not guaranteed.</p>
+      <p class="source-line">Data source: SCWMLS, ${esc(D.closings)} closings, snapshot ${SNAP}. Each community is reported by its city area, the standard SCWMLS unit. Data deemed reliable but not guaranteed.</p>
     </div>
 
     <div class="mr-cta-banner">
@@ -461,7 +474,7 @@ function renderHub() {
       <a href="${SITE}${EVAL}" class="btn btn-outline">Home Value</a>
       <a href="${SITE}${CONTACT}" class="btn btn-outline">Contact</a>
     </div>
-    <p class="mr-footer-source">Data source: South Central Wisconsin MLS (SCWMLS). ${esc(D.closings)} closings. Snapshot date: September 1, 2026. Data deemed reliable but not guaranteed. Integrity Homes of Wisconsin is Powered by Real Broker, LLC.</p>
+    <p class="mr-footer-source">Data source: South Central Wisconsin MLS (SCWMLS). ${esc(D.closings)} closings. Snapshot date: ${SNAP}. Data deemed reliable but not guaranteed. Integrity Homes of Wisconsin is Powered by Real Broker, LLC.</p>
   </div></div>
 </div>
 ${S.hubSticky(v)}`;

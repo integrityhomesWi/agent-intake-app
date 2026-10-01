@@ -4,7 +4,7 @@ const fs = require("fs");
 const D = require("./data.js");
 const N = require("./narrative.js");
 
-const OUT = "C:/Users/admin/Downloads/market-reports-september-2026";
+const OUT = "C:/Users/admin/Downloads/market-reports-october-2026";
 const SITE = "https://integrityhomeswi.com";
 const HUB = "/wisco-hub";                 // Dane County lives here, NOT /market-reports/dane-county-wisconsin/
 const EVAL = "/evaluation";               // no trailing slash

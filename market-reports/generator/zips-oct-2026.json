@@ -1,0 +1,28 @@
+{
+  "_source": "SCWMLS-ComparisonReports.pdf, City: Madison filter, Sep 1-30 2026, snapshot Oct 1 2026, page 6 ZIP CODES Data Table",
+  "_method": "pdftotext raw; cross-checked against -layout. Raw order is rank order and is authoritative. The -layout view misaligns zip labels against values by several rows, matching the known SCWMLS gotcha.",
+  "_omitted": "Per-zip 'Ave % Over Asking' could not be split reliably into current vs YoY (25 tokens for 26 expected slots). Column omitted rather than guessed.",
+  "city": "Madison",
+  "reportMonth": "2026-09",
+  "snapshot": "2026-10-01",
+  "zips": [
+    {"zip":"53704","sales":36,"salesYoY":0.161,"median":363900,"medianYoYUsd":-11100,"psf":250,"psfYoYUsd":-15,"dom":11,"domYoYDays":3},
+    {"zip":"53711","sales":26,"salesYoY":0.040,"median":539000,"medianYoYUsd":31100,"psf":326,"psfYoYUsd":21,"dom":7,"domYoYDays":-1},
+    {"zip":"53719","sales":24,"salesYoY":-0.040,"median":450000,"medianYoYUsd":40100,"psf":236,"psfYoYUsd":11,"dom":14,"domYoYDays":2},
+    {"zip":"53593","sales":14,"salesYoY":-0.067,"median":700000,"medianYoYUsd":175000,"psf":261,"psfYoYUsd":14,"dom":26,"domYoYDays":-1,"note":"Verona zip, not Madison city"},
+    {"zip":"53714","sales":13,"salesYoY":0.625,"median":413000,"medianYoYUsd":73000,"psf":266,"psfYoYUsd":-37,"dom":7,"domYoYDays":1},
+    {"zip":"53718","sales":12,"salesYoY":-0.455,"median":424900,"medianYoYUsd":44900,"psf":226,"psfYoYUsd":-2,"dom":25,"domYoYDays":3},
+    {"zip":"53705","sales":12,"salesYoY":-0.333,"median":592500,"medianYoYUsd":148500,"psf":320,"psfYoYUsd":50,"dom":6,"domYoYDays":-3},
+    {"zip":"53716","sales":11,"salesYoY":0.571,"median":411500,"medianYoYUsd":51500,"psf":244,"psfYoYUsd":-3,"dom":5,"domYoYDays":-1},
+    {"zip":"53703","sales":9,"salesYoY":0.0,"median":425500,"medianYoYUsd":-14500,"psf":413,"psfYoYUsd":13,"dom":16,"domYoYDays":-3,"smallSample":true},
+    {"zip":"53717","sales":7,"salesYoY":-0.500,"median":400000,"medianYoYUsd":-85000,"psf":227,"psfYoYUsd":-20,"dom":7,"domYoYDays":-1,"smallSample":true},
+    {"zip":"53713","sales":5,"salesYoY":-0.167,"median":200000,"medianYoYUsd":-95000,"psf":237,"psfYoYUsd":-50,"dom":10,"domYoYDays":3,"smallSample":true},
+    {"zip":"53715","sales":4,"salesYoY":null,"median":380000,"medianYoYUsd":null,"psf":366,"psfYoYUsd":null,"dom":3,"domYoYDays":null,"smallSample":true},
+    {"zip":"53562","sales":3,"salesYoY":null,"median":785000,"medianYoYUsd":null,"psf":278,"psfYoYUsd":null,"dom":12,"domYoYDays":null,"smallSample":true,"note":"Middleton zip, not Madison city"}
+  ],
+  "headlineInThisReport": {
+    "sales":199,"salesYoY":-0.015,"volume":97963829,"volumeYoY":0.061,
+    "median":430000,"medianYoYUsd":15000,"psf":276,"psfYoYUsd":9,
+    "medianDom":10,"domYoYDays":0,"pctOverAsking":-0.0047,"pctOverYoY":-0.0006
+  }
+}

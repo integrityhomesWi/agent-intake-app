@@ -121,20 +121,36 @@ function yoy(city, v, chart) {
 }
 
 function neighborhood(city, v) {
-  const sorted = [...v.zips].sort((a,b) => b[1] - a[1]);
-  const busiest = sorted[0];
-  const priciest = [...v.zips].sort((a,b) => b[2] - a[2])[0];
-  const cheapest = [...v.zips].sort((a,b) => a[2] - b[2])[0];
-  const fastest = [...v.zips].sort((a,b) => a[3] - b[3])[0];
-  const multi = v.zips.length > 1;
+  // Zips under ten sales are small samples. They render in the detail table with an
+  // asterisk, but they never drive a headline claim about fastest or priciest.
+  const SMALL = 10;
+  const big = v.zips.filter(z => z[1] >= SMALL);
+  const multi = big.length > 1;
 
-  const lead = multi
-    ? `${city} is not one market. Zip ${busiest[0]} carried the most volume in ${D.closings} with ${busiest[1]} sales at a ${money(busiest[2])} median, while ${priciest[0]} posted the highest median at ${money(priciest[2])} and ${cheapest[0]} the most attainable at ${money(cheapest[2])}.`
-    : `${city} is essentially a single zip market. ${busiest[0]} accounted for ${busiest[1]} of the city's ${v.sales} sales in ${D.closings}, at a ${money(busiest[2])} median and a ${busiest[3]} day median time to contract.`;
+  let lead, second;
 
-  const second = multi
-    ? `<p>The spread between ${cheapest[0]} at ${money(cheapest[2])} and ${priciest[0]} at ${money(priciest[2])} is ${money(priciest[2] - cheapest[2])}, which is why a city-wide median is the wrong number to shop by. Zip ${fastest[0]} moved fastest at a ${fastest[3]} day median.</p>`
-    : `<p>Within the city the ${band(v.tight)} range is where the competition concentrates, at ${v.tightSup.toFixed(2)} months of supply. Newer construction and the established core trade quite differently even inside one zip, so the city median is a starting point rather than an answer.</p>`;
+  if (big.length === 0) {
+    // No usable zip detail this month. Write the section from the price bands rather
+    // than inventing geography, and never explain the absence to the reader.
+    const live = v.brackets.filter(b => b[1] > 0);
+    const loosest = [...live].sort((a, b) => b[1] - a[1])[0];
+    const hot = live.filter(b => b[1] < 1);
+    lead = `${city} is not one market, it is a set of price points behaving very differently. The ${band(v.tight)} range is the tightest in the city at ${v.tightSup.toFixed(2)} months of supply, while ${band(loosest[0])} sits at ${loosest[1].toFixed(2)} months. A buyer in one of those bands and a buyer in the other are shopping completely different markets.`;
+    second = hot.length
+      ? `<p>${hot.length === 1 ? "One band is" : "Two bands are"} under a single month of supply: ${hot.map(h => band(h[0])).join(" and ")}. That is where competing offers actually happen in ${esc(city)}, and buyers there should come in clean and decisive. In every other band a prepared buyer has room to think.</p>`
+      : `<p>No band in ${esc(city)} is under one month of supply, so there is no segment where a buyer should feel rushed into a decision they regret. The spread from ${v.tightSup.toFixed(2)} months to ${loosest[1].toFixed(2)} months is the real story here: shop the band you can actually afford, not the city median.</p>`;
+  } else if (multi) {
+    const busiest = [...big].sort((a, b) => b[1] - a[1])[0];
+    const priciest = [...big].sort((a, b) => b[2] - a[2])[0];
+    const cheapest = [...big].sort((a, b) => a[2] - b[2])[0];
+    const fastest = [...big].sort((a, b) => a[3] - b[3])[0];
+    lead = `${city} is not one market. Zip ${busiest[0]} carried the most volume in ${D.closings} with ${busiest[1]} sales at a ${money(busiest[2])} median, while ${priciest[0]} posted the highest median at ${money(priciest[2])} and ${cheapest[0]} the most attainable at ${money(cheapest[2])}.`;
+    second = `<p>The spread between ${cheapest[0]} at ${money(cheapest[2])} and ${priciest[0]} at ${money(priciest[2])} is ${money(priciest[2] - cheapest[2])}, which is why a city-wide median is the wrong number to shop by. Zip ${fastest[0]} moved fastest at a ${fastest[3]} day median, so the same budget buys a very different level of urgency depending on where you look.</p>`;
+  } else {
+    const only = big[0];
+    lead = `${city} is essentially a single zip market. ${only[0]} accounted for ${only[1]} of the city's ${v.sales} sales in ${D.closings}, at a ${money(only[2])} median and a ${only[3]} day median time to contract.`;
+    second = `<p>Within the city the ${band(v.tight)} range is where the competition concentrates, at ${v.tightSup.toFixed(2)} months of supply. Newer construction and the established core trade quite differently even inside one zip, so the city median is a starting point rather than an answer.</p>`;
+  }
 
   return `<div class="mr-section">
       <h2>What's Happening in My ${esc(city)} Neighborhood?</h2>
