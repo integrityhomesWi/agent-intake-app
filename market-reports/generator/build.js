@@ -46,6 +46,11 @@ const anWord = w => {
   return /^[aeiou]/i.test(t);
 };
 const article = w => (anWord(w) ? "an " : "a ") + w;
+// Tightest is a RANK (the lowest band). Hot is a THRESHOLD (strictly under 1.0 month).
+// They are not the same thing and must never be treated as one. A 1.57-month band is
+// the tightest in DeForest and is still a band where buyers have time.
+const isHot = sup => sup > 0 && sup < 1;
+const cityIsHot = v => isHot(v.tightSup);
 const signed = v => (v>0?"+":"") + pct(v);
 const days = v => (v>0?"+":"") + v + (Math.abs(v)===1?" day":" days");
 const cls = v => v>0?"chg-up":v<0?"chg-down":"chg-flat";
@@ -178,13 +183,13 @@ function bars(v, city) {
 <title id="b-t">Months of supply by price range, ${esc(city)}, ${D.month}</title>
 <rect width="700" height="${height}" fill="transparent"></rect>`;
   rows.forEach(([label, sup], i) => {
-    const y = top + i*h, hot = sup>0 && sup===v.tightSup && label===v.tight, none = sup===0;
+    const y = top + i*h, hot = isHot(sup), tightest = label===v.tight && sup>0, none = sup===0;
     const w = Math.min(sup,6)*W;
-    const color = none ? "#e5e7eb" : hot ? "#dc2626" : "#1e3a5f";
-    const lc = none ? "#718096" : hot ? "#dc2626" : "#718096";
-    s += `<text x="160" y="${y+14}" font-family="Inter,sans-serif" font-size="11" fill="${lc}" text-anchor="end"${hot?' font-weight="700"':""}>${esc(label)}${hot?" \ud83d\udd34":""}</text>`;
+    const color = none ? "#e5e7eb" : hot ? "#dc2626" : "#1e3a5f";   // navy unless genuinely hot
+    const lc = none ? "#718096" : hot ? "#dc2626" : tightest ? "#1e3a5f" : "#718096";
+    s += `<text x="160" y="${y+14}" font-family="Inter,sans-serif" font-size="11" fill="${lc}" text-anchor="end"${(hot||tightest)?' font-weight="700"':""}>${esc(label)}${hot?" \ud83d\udd34":""}</text>`;
     s += `<rect x="165" y="${y}" width="${none?4:w.toFixed(0)}" height="20" rx="4" fill="${color}"></rect>`;
-    s += `<text x="${165+(none?4:w)+6}" y="${y+14}" font-family="Inter,sans-serif" font-size="11" fill="${lc}"${hot?' font-weight="700"':""}>${none?"nothing available":sup.toFixed(2)+(hot?" \u2190 tightest":"")}</text>`;
+    s += `<text x="${165+(none?4:w)+6}" y="${y+14}" font-family="Inter,sans-serif" font-size="11" fill="${lc}"${(hot||tightest)?' font-weight="700"':""}>${none?"nothing available":sup.toFixed(2)+(hot?" \u2190 hot zone":tightest?" \u2190 tightest":"")}</text>`;
   });
   const ay = top + rows.length*h + 8;
   s += `<line x1="165" y1="${ay}" x2="645" y2="${ay}" stroke="#e2e8f0" stroke-width="1"></line>`;
@@ -242,7 +247,7 @@ function faqs(city, v) {
     ['Are home prices going up or down in '+city+'?',
      'The '+D.closings+' median is '+(v.medYoY>=0?'up':'down')+' '+pct(Math.abs(v.medYoY))+' year over year. Average price per square foot is $'+v.sqft+', '+(v.sqftYoY>=0?'up':'down')+' '+pct(Math.abs(v.sqftYoY))+' from $'+priorSqft+', which is the cleaner read on underlying value.'],
     ['What price range is most competitive in '+city+'?',
-     'The '+band(v.tight)+' range at '+v.tightSup.toFixed(2)+' months of supply. Buyers there should be prepared to move quickly and offer cleanly.'],
+     'The '+band(v.tight)+' range at '+v.tightSup.toFixed(2)+' months of supply. '+(cityIsHot(v)?'Buyers there should be prepared to move quickly and offer cleanly.':'Even so, at that level buyers have time to look, and the advantage is in terms rather than in bidding the price up.')],
     ['Where do buyers have the most room in '+city+'?',
      loose
       ? 'The '+band(loose[0])+' range carries '+loose[1].toFixed(2)+' months of supply, the loosest bracket in the city and the best place to ask for terms.'
@@ -263,4 +268,4 @@ function faqs(city, v) {
   return f;
 }
 
-module.exports = { esc, money, pct, signed, article, days, cls, arrow, monthName, graph, gauge, bars, yoyChart, faqs, TITLES, SITE, HUB, EVAL, ABOUT, CONTACT, ROH, IMG, OUT, D, N };
+module.exports = { esc, money, pct, signed, article, isHot, cityIsHot, days, cls, arrow, monthName, graph, gauge, bars, yoyChart, faqs, TITLES, SITE, HUB, EVAL, ABOUT, CONTACT, ROH, IMG, OUT, D, N };

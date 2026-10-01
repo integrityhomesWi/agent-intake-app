@@ -1,7 +1,7 @@
 // The visible Q&A sections from Step 8 of the skill. Every sentence is derived
 // from data.js, so nothing here can drift from the numbers in the tables.
 const B = require("./build.js");
-const { esc, money, pct, signed, days, cls, arrow, article, SITE, EVAL } = B;
+const { esc, money, pct, signed, days, cls, arrow, article, isHot, cityIsHot, SITE, EVAL } = B;
 const D = require("./data.js");
 
 const up = v => v >= 0 ? "up" : "down";
@@ -29,9 +29,11 @@ function buy(city, v) {
   return `<div class="mr-section">
       <h2>Should I Buy a Home in ${esc(city)} Right Now?</h2>
       <p class="speakable-answer">${esc(city)} has ${v.sup.toFixed(2)} months of supply, which is ${esc(article(v.typePlain.toLowerCase()))}. There are ${v.active} homes active against an average of ${v.salesMo} sales a month, and the median sale price is ${money(v.med)}. If you are qualified and the payment works, waiting does not put you in a better position, because there is no sign of inventory loosening.</p>
-      <p>The tightest competition is in the ${esc(tightTxt)} range at ${v.tightSup.toFixed(2)} months of supply. Buyers there should expect to move quickly and offer cleanly.${esc(emptyTxt)}</p>
+      <p>The tightest competition is in the ${esc(tightTxt)} range at ${v.tightSup.toFixed(2)} months of supply. ${cityIsHot(v) ? `Buyers there should expect to move quickly and offer cleanly.` : `Even that range is not a bidding war at this level, so take the time to look properly and put your effort into terms rather than price.`}${esc(emptyTxt)}</p>
       <p>${v.ask >= 0
+          ? (v.ask >= 0.005
           ? `Across the city buyers paid an average of ${pct(v.ask)} over asking in ${D.closings}, so budgeting to list price alone will leave you short in a competitive situation.`
+          : `Across the city buyers paid an average of ${pct(v.ask)} over asking in ${D.closings}, which is effectively list price, so budget to the asking number rather than assuming you need to go above it.`)
           : `Across the city buyers paid an average of ${pct(Math.abs(v.ask))} under asking in ${D.closings}, which is more negotiating room than most of Dane County offered this month.`}</p>
       <div class="city-hubs">
         <a href="${SITE}${v.hfs}">Browse ${esc(city)} Homes</a>
@@ -69,8 +71,10 @@ function domSection(city, v) {
 function negotiate(city, v) {
   return `<div class="mr-section">
       <h2>Can Buyers Negotiate in ${esc(city)}?</h2>
-      <p class="speakable-answer">${v.ask >= 0
+      <p class="speakable-answer">${v.ask >= 0.005 && v.sup < 2
         ? `Not easily. Buyers paid an average of ${pct(v.ask)} over asking in ${esc(city)} in ${D.closings}, and that figure moved ${signed(v.askYoY)} from a year ago. With ${v.sup.toFixed(2)} months of supply, price is not where you win.`
+        : v.ask >= 0
+        ? `More than the headline suggests. Buyers paid an average of ${pct(v.ask)} over asking in ${esc(city)} in ${D.closings}, which is effectively list price, and that figure moved ${signed(v.askYoY)} from a year ago. At ${v.sup.toFixed(2)} months of supply there is room to negotiate, particularly on terms.`
         : `Somewhat. Buyers paid an average of ${pct(Math.abs(v.ask))} under asking in ${esc(city)} in ${D.closings}, a shift of ${signed(v.askYoY)} from a year ago. That is real room compared with most of Dane County.`}</p>
       <p>Where the leverage sits depends entirely on price point. ${v.tightSup < 1
         ? `The ${esc(band(v.tight))} range at ${v.tightSup.toFixed(2)} months is the least forgiving, and buyers there should expect competition and offer cleanly.`
@@ -103,7 +107,7 @@ function yoy(city, v, chart) {
      <div class="prior">Prior year: ${prior}</div><div class="delta ${good}">${delta}</div></div>`;
   return `<div class="mr-section">
       <h2>What's Changed Over the Last Year?</h2>
-      <p>Four measures tell the story of where ${esc(city)} moved since ${D.closings} a year ago.</p>
+      <p>Four measures tell the story of where ${esc(city)} moved since ${esc(D.closings.replace(/(\d{4})\s*$/, (m, y) => String(Number(y) - 1)))}.</p>
       <div class="yoy-charts">
         ${card("Median Sale Price", money(v.med), money(v.priorMed), arrow(v.medYoY) + " " + signed(v.medYoY), cls(v.medYoY))}
         ${card("Homes Sold", String(v.sales), String(v.priorSales), arrow(v.salesYoY) + " " + signed(v.salesYoY), cls(v.salesYoY))}

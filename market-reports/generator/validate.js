@@ -70,6 +70,23 @@ for (const file of fs.readdirSync(OUT).filter(f => f.endsWith(".html"))) {
   // goes back to check. October 2026: five of seven pages were still carrying September
   // figures here, and Middleton's said buyers paid "over asking" when they paid under.
   // A digit in either field is the signal, so a digit in either field fails the build.
+  // Urgency language is only honest when a band is genuinely under 1.0 month. DeForest
+  // shipped "move quickly and offer cleanly" about a 1.57-month band while John's Take on
+  // the same page said those homes took 50 days to sell. Tightest is a RANK, hot is a
+  // THRESHOLD. Conflating the two is the most repeated defect in this generator.
+  const cityKey = Object.keys(D.cities).find(c => D.cities[c].slug === name)
+    || (name === "wisco-hub" ? "Dane County" : null);
+  const dv = cityKey === "Dane County" ? D.county : D.cities[cityKey];
+  if (dv) {
+    const hotBands = dv.brackets.filter(b => b[1] > 0 && b[1] < 1).length;
+    if (!hotBands) {
+      for (const re of [/move quickly and offer cleanly/, /at or above list/, /leave you short/])
+        if (re.test(html)) bad(`${name}: urgency language ${re} but no band is under 1.00 month`);
+    }
+    const marked = (html.match(/← hot zone/g) || []).length;
+    if (marked !== hotBands) bad(`${name}: ${marked} hot-zone chart markers vs ${hotBands} bands under 1.00`);
+  }
+
   // Article agreement. The skill states the rule outright: always "an Extreme Seller's
   // Market". It shipped as "a Extreme" on the live September pages, in prose and in the
   // FAQ schema, because the article was hardcoded next to an interpolated value.
