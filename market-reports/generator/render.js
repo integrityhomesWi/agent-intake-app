@@ -369,7 +369,7 @@ ${S.stickyBar(city, v)}`;
 // ---------- Dane County hub ----------
 function renderHub() {
   const city = "Dane County", v = D.county, [title, desc] = TITLES[city], url = HUB, n = N[city];
-  const hubV = Object.assign({}, v, { lat: 43.0731, lng: -89.4012, archive: [], slug: "dane-county", heroImg: IMG, ogImg: IMG });
+  const hubV = Object.assign({}, v, { archive: [], slug: "dane-county", heroImg: IMG, ogImg: IMG });
   const f = faqs(city, hubV);
   const g = graph(city, hubV, url, title, desc, f);
   const sorted = Object.entries(D.cities).sort((a, b) => a[1].sup - b[1].sup);

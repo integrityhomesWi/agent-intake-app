@@ -40,13 +40,13 @@ Last updated 2026-10-01, after the October build.
 - **`pct()` precision.** Rounds to one decimal, so over-asking shows `0.4%` not `0.43%`. In `generator/build.js`.
 
 ## Monthly run order
+
+```bash
+cd generator && node month.js
 ```
-node verify-data.js     # cross-checks the dataset before anything renders
-node render.js          # writes the 7 files to Downloads\market-reports-<month>-<year>
-node validate.js        # schema, links, dashes, title and meta limits
-node verify-output.js   # dates, zip tables, hot zones, word counts, the corrections
-```
-Update `OUT` in `build.js` to the new month before running `render.js`, or last month's folder gets overwritten.
+
+One command. Checks the data, renders to staging, runs all 60 rules, publishes only if
+everything passes. See `README.md`.
 
 ## Standing rules learned the hard way
 - No placeholders. Ever. Call out that we do not know yet, or render nothing. `validate.js` blocks the build on placeholder language.

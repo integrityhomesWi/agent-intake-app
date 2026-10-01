@@ -4,7 +4,10 @@ const fs = require("fs");
 const D = require("./data.js");
 const N = require("./narrative.js");
 
-const OUT = "C:/Users/admin/Downloads/market-reports-october-2026";
+// Derived from the month, never hand-edited. month.js overrides it with a staging
+// folder so a failing build never reaches the delivery folder.
+const OUT = process.env.MR_OUT
+  || "C:/Users/admin/Downloads/market-reports-" + D.month.toLowerCase().replace(/ /g, "-");
 const SITE = "https://integrityhomeswi.com";
 const HUB = "/wisco-hub";                 // Dane County lives here, NOT /market-reports/dane-county-wisconsin/
 const EVAL = "/evaluation";               // no trailing slash

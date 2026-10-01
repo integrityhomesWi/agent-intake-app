@@ -81,7 +81,7 @@ module.exports = {
   brackets:[["$200K-$299K",5.14],["$300K-$399K",2.00],["$400K-$499K",2.84],["$500K-$599K",2.13],["$600K-$699K",1.85],["$700K-$799K",1.57],["$800K-$899K",6.00],["$900K-$999K",0],["$1,000,000+",0]],
   zips:[]}
  },
- county:{rec:"recAcvuYfjUqLClt7",med:474900,medYoY:.067,priorMed:445000,avg:541476,avgYoY:.064,
+ county:{rec:"recAcvuYfjUqLClt7",lat:43.0731,lng:-89.4012,zip:null,med:474900,medYoY:.067,priorMed:445000,avg:541476,avgYoY:.064,
   dom:11,domYoY:0,priorDom:11,avgDom:36,avgDomYoY:6,sup:2.48,active:1378,pending:274,salesMo:555,
   sales:445,salesYoY:-.127,priorSales:510,sqft:261,sqftYoY:.036,ask:-.0067,askYoY:-.0019,
   vol:240956855,volYoY:-.072,newL:593,newLYoY:-.118,newP:412,newPYoY:-.234,

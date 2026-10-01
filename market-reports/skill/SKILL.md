@@ -182,40 +182,23 @@ e.g., `madison-market-report-june-2026.html`
 
 ## Step 5: City Configuration
 
-Pull ALL URLs, hero images, coordinates, school info, and Kit links from this table. Never fabricate.
+**`generator/data.js` is the ONLY source for city config.** Hero images, Kit newsletter
+URLs, coordinates, zips, school district names and URLs, hub paths, homes-for-sale paths.
 
-| City | City Slug | City Hub URL | Hero Image | Kit Newsletter | Lat | Lng | Primary Zip | School District | School Guide URL |
-|------|-----------|--------------|------------|----------------|-----|-----|-------------|-----------------|------------------|
-| Madison | madison | https://integrityhomeswi.com/madison/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251218_bbbbc427676a4977.jpeg | https://integrity-homes.kit.com/madison-wi-housing-market-update | 43.0731 | -89.4012 | 53703 | Madison Metropolitan School District | https://integrityhomeswi.com/schools/madison-metropolitan-school-district/ |
-| Sun Prairie | sun-prairie | https://integrityhomeswi.com/sun-prairie/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_1d0d8c9d61104549.png | https://integrity-homes.kit.com/sun-prairie-market-report | 43.1836 | -89.2137 | 53590 | Sun Prairie Area School District | https://integrityhomeswi.com/schools/sun-prairie-area-school-district/ |
-| DeForest | deforest | https://integrityhomeswi.com/deforest/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_c1bd607250f345ce.png | https://integrity-homes.kit.com/deforest-market-report | 43.2486 | -89.3437 | 53532 | DeForest Area School District | https://integrityhomeswi.com/schools/deforest-area-school-district/ |
-| Verona | verona | https://integrityhomeswi.com/verona/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_c0620c22fff84264.jpeg | https://integrity-homes.kit.com/verona-market-report | 42.9919 | -89.5331 | 53593 | Verona Area School District | https://integrityhomeswi.com/schools/verona-area-school-district/ |
-| Waunakee | waunakee | https://integrityhomeswi.com/waunakee/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_46dfdf3e440e4fcf.png | https://integrity-homes.kit.com/waunakee-wi-housing-market-update | 43.1919 | -89.4556 | 53597 | Waunakee Community School District | https://integrityhomeswi.com/schools/waunakee-community-school-district/ |
-| Middleton | middleton | https://integrityhomeswi.com/middleton/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_f7e810a2af214ab5.jpeg | https://integrity-homes.kit.com/middleton-market-report | 43.0972 | -89.5043 | 53562 | Middleton-Cross Plains Area School District | https://integrityhomeswi.com/schools/middleton-cross-plains-area-school-district/ |
+This section used to restate all of it in a table. The table drifted twice: it listed
+Waunakee's newsletter as `waunakee-market-report` (a 404) and pointed Waunakee's hero
+image at Sun Prairie's photo. Both shipped. A fact written in two places is a fact that
+will disagree with itself, so the table is gone.
 
-### Config table corrections (verified 2026-10-01)
+To read the current config:
 
-Three errors lived in the table above and shipped more than once:
-- **Waunakee's Kit URL** `waunakee-market-report` returns **404**. The live one is
-  `waunakee-wi-housing-market-update`. All six `*-wi-housing-market-update` URLs return 200.
-- **Hero images were crossed.** Waunakee listed Sun Prairie's photo. John supplied the
-  authoritative list in September 2026; `generator/data.js` holds it and is the source of truth.
-- Verify a config value before trusting it. This table is a convenience copy, not the system of record.
+```bash
+node -e "const d=require('./data.js');for(const[c,v]of Object.entries(d.cities))console.log(c,v.heroImg,v.kit,v.lat,v.lng)"
+```
 
-### Titles and metas must be EVERGREEN
-
-No figures in either field. A number baked into a title or meta is true for one month and
-quietly false afterwards, and the six-week no-touch rule means nobody goes back to check.
-In October 2026 five of seven pages still carried September figures, and Middleton's meta
-said buyers paid "over asking" when they paid 2.03% under. `generator/validate.js` now fails
-the build if a digit appears in either field.
-
-### John's Take comes from the Airtable field, never the Notes field
-
-The Notes field holds raw MLS research. It names other brokers' listings as stale, carries
-internal asides, and is working material. Publishing it is a professional problem. Use the
-**John's Take** field, verbatim, split on its paragraph breaks. Same for **Speakable Answer
-Line** and **Market Summary Line**.
+`generator/rules.js` asserts that every built page matches `data.js` on hero image, Kit
+link, school URL and coordinates, so a mismatch fails the build rather than reaching a
+published page.
 
 ### Shared URLs
 - Home valuation: `https://integrityhomeswi.com/evaluation`
@@ -482,56 +465,22 @@ The one legitimate exception is a real market fact that happens to be an
 absence: nothing available, no active listings in a price bracket with zero
 inventory is data about the market, not an apology for missing data.
 
-## Step 11: QA Checklist
+## Step 11: QA
 
-### Grammar & Language
-- [ ] "an Extreme Seller's Market"; "leaning toward a Buyer's Market"
-- [ ] No "fast market" language if median DOM > 30
-- [ ] No "prices remain elevated" if city price YoY < -5%
-- [ ] Sales/volume decline framed as fewer transactions, not falling prices, when prices are steady
-- [ ] No "Balanced Market" anywhere
-- [ ] Market type matches 5-tier ladder exactly
+Do not hand-check. Run the gate:
 
-### Classification & Indicators
-- [ ] Hot zones strictly < 1.0 mo — flagged consistently; nothing ≥ 1.0 flagged red
-- [ ] $0–$99,999 inflated-supply bracket footnoted as small sample, not sold as a buyer's segment
-- [ ] Zips/brackets < 10 sales footnoted, not featured
-- [ ] Supply gauge uses Seller's (4) / Buyer's (6) thresholds, never "Balanced"
+```bash
+node month.js
+```
 
-### URLs, Dates & Config
-- [ ] Canonical = permanent `/market-reports/{city-slug}-wisconsin/` (NOT dated)
-- [ ] Hero image, zip(s), school district name/URL, lat/lng all match config exactly
-- [ ] `datePublished` 2025-12-01 static; `dateModified` = snapshot date
-- [ ] Hero badge, WebPage dateModified, Dataset dateModified all in sync
-- [ ] City Hub URL in: hero pill, nav, schools/CTA area, footer button, About closing, JSON-LD significantLink (first)
-- [ ] Kit newsletter URL correct for city
+It checks the dataset, renders to a staging folder, runs every rule in
+`generator/rules.js` against what was rendered, and only then moves the pages into the
+delivery folder. A failing build publishes nothing.
 
-### Schema
-- [ ] Single `@graph` in `<head>`
-- [ ] ZERO placeholder or gap-explaining language on the page (see NO PLACEHOLDERS).
-      Omit the section and tell John instead.
-- [ ] Every `@id` reference resolves to a node defined in the SAME graph (no cross-page refs)
-- [ ] Zero em dashes in the generated HTML. Colons in headings, commas in prose, `n/a` in empty
-      table cells. En dashes in numeric ranges ($300,000–$399,999) are the one allowed exception
-- [ ] If `references/archive-index.md` is missing, the archive note must NOT claim month-by-month
-      history exists. Describe only what the page actually contains
-- [ ] All 7 entities present; BreadcrumbList 3 levels; City Hub first in significantLink
-- [ ] `numberOfItems` counted from archive-index.md, not hardcoded
-
-### Content & HTML
-- [ ] Overview prose city-specific, not boilerplate
-- [ ] Every number traces to the PDF or John — no invented stats
-- [ ] ROH widget present with correct calculator URL
-- [ ] All three SVG charts present with `<title>`/`<desc>`
-- [ ] Speakable classes present: `.market-hero-intro`, `.tldr-box`, `.speakable-answer`, `.faq-a`
-- [ ] Google Fonts URL includes `&display=swap`
-- [ ] No `position:fixed`; no `<form>`; mobile `background-attachment:scroll`; navy hero fallback color
-- [ ] Gold solid buttons + sticky-bar links use `color:#152a45 !important` scoped under `.market-report` (not gold-on-gold)
-- [ ] Every `.mr-table` wrapped in `.table-scroll` (overflow-x:auto, min-width:520px) so no column clips on mobile
-- [ ] Sticky CTA script is the only JS
-- [ ] Data-source footer present
-
----
+Every "must", "always" and "never" in this document that is observable in the output is
+expressed as a rule in `generator/rules.js`, tagged with the section it came from. If you
+add a rule to this document, add the assertion at the same time. A rule that lives only in
+prose is a rule that breaks silently and gets found by John reading a published page.
 
 ## Step 12: Deliver
 
