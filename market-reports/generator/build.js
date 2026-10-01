@@ -33,6 +33,19 @@ const pct = v => {
   const s = Math.abs(n) < 1 ? n.toFixed(2) : n.toFixed(1);
   return s.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "") + "%";
 };
+// "a Extreme Seller's Market" and "a 11 day median" both read as mistakes.
+// Decide the article from how the word is actually spoken, not its first letter.
+// 8, 11, 18 and the 80s take "an"; everything else numeric takes "a".
+const anWord = w => {
+  const t = String(w).trim();
+  const n = t.match(/^\$?([\d,]+)/);
+  if (n) {
+    const d = n[1].replace(/,/g, "");
+    return d === "8" || d === "11" || d === "18" || /^8\d$/.test(d) || /^8/.test(d) && d.length === 4;
+  }
+  return /^[aeiou]/i.test(t);
+};
+const article = w => (anWord(w) ? "an " : "a ") + w;
 const signed = v => (v>0?"+":"") + pct(v);
 const days = v => (v>0?"+":"") + v + (Math.abs(v)===1?" day":" days");
 const cls = v => v>0?"chg-up":v<0?"chg-down":"chg-flat";
@@ -217,7 +230,7 @@ function faqs(city, v) {
     ['How long does it take to sell a house in '+city+'?',
      'The median days on market was '+v.dom+' days in '+D.closings+', compared with '+v.priorDom+' days a year earlier. The average was '+v.avgDom+' days.'],
     ["Is "+city+" a buyer's or seller's market?",
-     city+' is a '+v.typePlain+' with '+v.sup.toFixed(2)+' months of supply. The tightest price range is '+band(v.tight)+' at '+v.tightSup.toFixed(2)+' months.'],
+     city+' is '+article(v.typePlain)+' with '+v.sup.toFixed(2)+' months of supply. The tightest price range is '+band(v.tight)+' at '+v.tightSup.toFixed(2)+' months.'],
     ['How many homes are for sale in '+city+' right now?',
      'As of '+D.snapshot+' there are '+v.active+' active listings and '+v.pending+(v.pending===1?' home pending in ':' homes pending in ')+city+', against an average of '+v.salesMo+' sales per month.'],
     ['How many homes sold in '+city+' in '+D.closings+'?',
@@ -237,7 +250,7 @@ function faqs(city, v) {
     ['Should I wait for interest rates to drop before buying in '+city+'?',
      'Supply is '+v.sup.toFixed(2)+' months and the year to date median is '+money(v.ytdMed)+', '+(v.ytdMedYoY>=0?'up':'down')+' '+pct(Math.abs(v.ytdMedYoY))+'. Waiting means competing for the same thin inventory later. Buy when the payment works and refinance if rates improve.'],
     ['Is now a good time to sell in '+city+'?',
-     'With '+v.sup.toFixed(2)+' months of supply, a '+v.dom+' day median time to contract, and a '+money(v.med)+' median sale price, sellers hold the stronger position. Price to recent comparables rather than aspirationally.'],
+     'With '+v.sup.toFixed(2)+' months of supply, '+article(v.dom+' day')+' median time to contract, and a '+money(v.med)+' median sale price, sellers hold the stronger position. Price to recent comparables rather than aspirationally.'],
     ['What were new listings and pendings in '+city+'?',
      'New listings came in at '+v.newL+', '+(v.newLYoY>=0?'up':'down')+' '+pct(Math.abs(v.newLYoY))+', and new pendings at '+v.newP+', '+(v.newPYoY>=0?'up':'down')+' '+pct(Math.abs(v.newPYoY))+'. Those two together are the best early read on the months ahead.']
   ];
@@ -250,4 +263,4 @@ function faqs(city, v) {
   return f;
 }
 
-module.exports = { esc, money, pct, signed, days, cls, arrow, monthName, graph, gauge, bars, yoyChart, faqs, TITLES, SITE, HUB, EVAL, ABOUT, CONTACT, ROH, IMG, OUT, D, N };
+module.exports = { esc, money, pct, signed, article, days, cls, arrow, monthName, graph, gauge, bars, yoyChart, faqs, TITLES, SITE, HUB, EVAL, ABOUT, CONTACT, ROH, IMG, OUT, D, N };

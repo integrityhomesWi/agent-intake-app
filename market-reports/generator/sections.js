@@ -1,7 +1,7 @@
 // The visible Q&A sections from Step 8 of the skill. Every sentence is derived
 // from data.js, so nothing here can drift from the numbers in the tables.
 const B = require("./build.js");
-const { esc, money, pct, signed, days, cls, arrow, SITE, EVAL } = B;
+const { esc, money, pct, signed, days, cls, arrow, article, SITE, EVAL } = B;
 const D = require("./data.js");
 
 const up = v => v >= 0 ? "up" : "down";
@@ -28,7 +28,7 @@ function buy(city, v) {
     : "";
   return `<div class="mr-section">
       <h2>Should I Buy a Home in ${esc(city)} Right Now?</h2>
-      <p class="speakable-answer">${esc(city)} has ${v.sup.toFixed(2)} months of supply, which is a ${esc(v.typePlain.toLowerCase())}. There are ${v.active} homes active against an average of ${v.salesMo} sales a month, and the median sale price is ${money(v.med)}. If you are qualified and the payment works, waiting does not put you in a better position, because there is no sign of inventory loosening.</p>
+      <p class="speakable-answer">${esc(city)} has ${v.sup.toFixed(2)} months of supply, which is ${esc(article(v.typePlain.toLowerCase()))}. There are ${v.active} homes active against an average of ${v.salesMo} sales a month, and the median sale price is ${money(v.med)}. If you are qualified and the payment works, waiting does not put you in a better position, because there is no sign of inventory loosening.</p>
       <p>The tightest competition is in the ${esc(tightTxt)} range at ${v.tightSup.toFixed(2)} months of supply. Buyers there should expect to move quickly and offer cleanly.${esc(emptyTxt)}</p>
       <p>${v.ask >= 0
           ? `Across the city buyers paid an average of ${pct(v.ask)} over asking in ${D.closings}, so budgeting to list price alone will leave you short in a competitive situation.`
@@ -150,7 +150,7 @@ function neighborhood(city, v) {
     second = `<p>The spread between ${cheapest[0]} at ${money(cheapest[2])} and ${priciest[0]} at ${money(priciest[2])} is ${money(priciest[2] - cheapest[2])}, which is why a city-wide median is the wrong number to shop by. Zip ${fastest[0]} moved fastest at a ${fastest[3]} day median, so the same budget buys a very different level of urgency depending on where you look.</p>`;
   } else {
     const only = big[0];
-    lead = `${city} is essentially a single zip market. ${only[0]} accounted for ${only[1]} of the city's ${v.sales} sales in ${D.closings}, at a ${money(only[2])} median and a ${only[3]} day median time to contract.`;
+    lead = `${city} is essentially a single zip market. ${only[0]} accounted for ${only[1]} of the city's ${v.sales} sales in ${D.closings}, at a ${money(only[2])} median and ${article(only[3] + ' day')} median time to contract.`;
     second = `<p>Within the city the ${band(v.tight)} range is where the competition concentrates, at ${v.tightSup.toFixed(2)} months of supply. Newer construction and the established core trade quite differently even inside one zip, so the city median is a starting point rather than an answer.</p>`;
   }
 

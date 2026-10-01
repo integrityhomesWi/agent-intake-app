@@ -70,6 +70,14 @@ for (const file of fs.readdirSync(OUT).filter(f => f.endsWith(".html"))) {
   // goes back to check. October 2026: five of seven pages were still carrying September
   // figures here, and Middleton's said buyers paid "over asking" when they paid under.
   // A digit in either field is the signal, so a digit in either field fails the build.
+  // Article agreement. The skill states the rule outright: always "an Extreme Seller's
+  // Market". It shipped as "a Extreme" on the live September pages, in prose and in the
+  // FAQ schema, because the article was hardcoded next to an interpolated value.
+  const aExtreme = (html.match(/a [Ee]xtreme/g) || []).length;
+  if (aExtreme) bad(`${name}: "a Extreme" x${aExtreme}, should be "an Extreme"`);
+  const aNum = (html.match(/a (8|11|18|8\d) day/g) || []).length;
+  if (aNum) bad(`${name}: "a 8/11/18 day" x${aNum}, should be "an"`);
+
   if (/\d/.test(t)) bad(`${name}: title carries a figure, must be evergreen: "${t}"`);
   if (/\d/.test(d)) bad(`${name}: meta carries a figure, must be evergreen: "${d}"`);
 
