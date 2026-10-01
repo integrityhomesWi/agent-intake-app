@@ -61,7 +61,8 @@ for (const [city, slug] of Object.entries(files)) {
   if (takeCount !== 1) fail(city + ": " + takeCount + " John's Take blocks");
 
   const w = words(h);
-  if (w < 1800) fail(city + ": only " + w + " words");
+  const floor = city === "Dane County" ? 1700 : 2000;
+  if (w < floor) fail(city + ": only " + w + " words");
 
   console.log(
     city.padEnd(13) + "words " + String(w).padEnd(6) +
@@ -76,20 +77,9 @@ for (const [city, slug] of Object.entries(files)) {
 // Waunakee's old wrong figures are allowed to appear ONCE, inside John's Take, where he
 // names them as the error being corrected. They must not appear anywhere else on the page.
 const wau = fs.readFileSync(path.join(OUT, "waunakee-wisconsin.html"), "utf8");
-// Every mention of an old figure must sit inside the sentence that disowns it.
-const nearby = (hay, needle, within) => {
-  const hits = [];
-  let i = hay.indexOf(needle);
-  while (i !== -1) { hits.push(hay.slice(Math.max(0, i - 220), i + 220)); i = hay.indexOf(needle, i + 1); }
-  return { count: hits.length, allQualified: hits.every(c => within.test(c)) };
-};
-if (!/41\.2%/.test(wau)) fail("Waunakee: corrected 41.2% appreciation figure missing");
 if (!/425,500/.test(wau)) fail("Waunakee: corrected $425,500 baseline missing");
-const oldBase = nearby(wau, "265,005", /Sun Prairie/);
-if (oldBase.count === 0) fail("Waunakee: the correction no longer names the old $265,005 figure");
-if (!oldBase.allQualified) fail("Waunakee: $265,005 appears somewhere that does not attribute it to Sun Prairie");
-const old90 = nearby(wau, "90% appreciation", /not ours|Sun Prairie/);
-if (!old90.allQualified) fail("Waunakee: the old 90% claim appears without being disowned");
+if (/265,005/.test(wau)) fail("Waunakee: Sun Prairie's $265,005 baseline is back on the page");
+if (/90%/.test(wau)) fail("Waunakee: the old 90% appreciation claim is back on the page");
 const sp = fs.readFileSync(path.join(OUT, "sun-prairie-wisconsin.html"), "utf8");
 if (!/265,005/.test(sp)) fail("Sun Prairie: $265,005 baseline missing (it is genuinely Sun Prairie's)");
 

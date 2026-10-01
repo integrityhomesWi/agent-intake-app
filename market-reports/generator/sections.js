@@ -24,7 +24,7 @@ const HUBS = {Madison:"/madison/",Waunakee:"/waunakee/","Sun Prairie":"/sun-prai
 function buy(city, v) {
   const tightTxt = band(v.tight);
   const emptyTxt = v.empty
-    ? ` One range to know about: there are no active listings at all between ${band(v.empty)}, so that price point is simply not available in ${city} right now.`
+    ? ` One range to know about: there are no active listings at all in the ${band(v.empty)} range, so that price point is simply not available in ${city} right now.`
     : "";
   return `<div class="mr-section">
       <h2>Should I Buy a Home in ${esc(city)} Right Now?</h2>
@@ -72,7 +72,9 @@ function negotiate(city, v) {
       <p class="speakable-answer">${v.ask >= 0
         ? `Not easily. Buyers paid an average of ${pct(v.ask)} over asking in ${esc(city)} in ${D.closings}, and that figure moved ${signed(v.askYoY)} from a year ago. With ${v.sup.toFixed(2)} months of supply, price is not where you win.`
         : `Somewhat. Buyers paid an average of ${pct(Math.abs(v.ask))} under asking in ${esc(city)} in ${D.closings}, a shift of ${signed(v.askYoY)} from a year ago. That is real room compared with most of Dane County.`}</p>
-      <p>Where the leverage sits depends entirely on price point. The ${esc(band(v.tight))} range at ${v.tightSup.toFixed(2)} months is the least forgiving. ${(() => {
+      <p>Where the leverage sits depends entirely on price point. ${v.tightSup < 1
+        ? `The ${esc(band(v.tight))} range at ${v.tightSup.toFixed(2)} months is the least forgiving, and buyers there should expect competition and offer cleanly.`
+        : `The ${esc(band(v.tight))} range is the tightest in the city at ${v.tightSup.toFixed(2)} months, though at that level it is not a bidding war, and a well prepared buyer still has room to negotiate terms.`} ${(() => {
         const loose = v.brackets.filter(b => b[1] >= 3).sort((a,b)=>b[1]-a[1])[0];
         return loose
           ? `At the other end, ${esc(band(loose[0]))} sits at ${loose[1].toFixed(2)} months, which is where a patient, well-prepared buyer has the most room to ask for terms.`
@@ -189,7 +191,7 @@ function rohWidget() {
       <h3>Why John Started Reward Our Heroes</h3>
       <p>Beyond real estate, John founded the Reward Our Heroes Foundation, a separate 501(c)(3) nonprofit supporting veterans, first responders, teachers, and healthcare workers across Wisconsin.</p>
       <p>It is its own organization with its own mission, not an Integrity Homes program.</p>
-      <a href="https://rewardourheroes.com" class="btn btn-gold">Learn about the Foundation</a>
+      <a href="${ROH_URL}" class="btn btn-gold">Learn about the Foundation</a>
     </div>`;
 }
 

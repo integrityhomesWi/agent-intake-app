@@ -187,11 +187,35 @@ Pull ALL URLs, hero images, coordinates, school info, and Kit links from this ta
 | City | City Slug | City Hub URL | Hero Image | Kit Newsletter | Lat | Lng | Primary Zip | School District | School Guide URL |
 |------|-----------|--------------|------------|----------------|-----|-----|-------------|-----------------|------------------|
 | Madison | madison | https://integrityhomeswi.com/madison/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251218_bbbbc427676a4977.jpeg | https://integrity-homes.kit.com/madison-wi-housing-market-update | 43.0731 | -89.4012 | 53703 | Madison Metropolitan School District | https://integrityhomeswi.com/schools/madison-metropolitan-school-district/ |
-| Sun Prairie | sun-prairie | https://integrityhomeswi.com/sun-prairie/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/sunprairie_hero.jpeg | https://integrity-homes.kit.com/sun-prairie-market-report | 43.1836 | -89.2137 | 53590 | Sun Prairie Area School District | https://integrityhomeswi.com/schools/sun-prairie-area-school-district/ |
+| Sun Prairie | sun-prairie | https://integrityhomeswi.com/sun-prairie/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_1d0d8c9d61104549.png | https://integrity-homes.kit.com/sun-prairie-market-report | 43.1836 | -89.2137 | 53590 | Sun Prairie Area School District | https://integrityhomeswi.com/schools/sun-prairie-area-school-district/ |
 | DeForest | deforest | https://integrityhomeswi.com/deforest/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_c1bd607250f345ce.png | https://integrity-homes.kit.com/deforest-market-report | 43.2486 | -89.3437 | 53532 | DeForest Area School District | https://integrityhomeswi.com/schools/deforest-area-school-district/ |
-| Verona | verona | https://integrityhomeswi.com/verona/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_e29b53b5f36e47e3.png | https://integrity-homes.kit.com/verona-market-report | 42.9919 | -89.5331 | 53593 | Verona Area School District | https://integrityhomeswi.com/schools/verona-area-school-district/ |
-| Waunakee | waunakee | https://integrityhomeswi.com/waunakee/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_1d0d8c9d61104549.png | https://integrity-homes.kit.com/waunakee-market-report | 43.1919 | -89.4556 | 53597 | Waunakee Community School District | https://integrityhomeswi.com/schools/waunakee-community-school-district/ |
+| Verona | verona | https://integrityhomeswi.com/verona/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_c0620c22fff84264.jpeg | https://integrity-homes.kit.com/verona-market-report | 42.9919 | -89.5331 | 53593 | Verona Area School District | https://integrityhomeswi.com/schools/verona-area-school-district/ |
+| Waunakee | waunakee | https://integrityhomeswi.com/waunakee/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_46dfdf3e440e4fcf.png | https://integrity-homes.kit.com/waunakee-wi-housing-market-update | 43.1919 | -89.4556 | 53597 | Waunakee Community School District | https://integrityhomeswi.com/schools/waunakee-community-school-district/ |
 | Middleton | middleton | https://integrityhomeswi.com/middleton/ | https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/20251219_f7e810a2af214ab5.jpeg | https://integrity-homes.kit.com/middleton-market-report | 43.0972 | -89.5043 | 53562 | Middleton-Cross Plains Area School District | https://integrityhomeswi.com/schools/middleton-cross-plains-area-school-district/ |
+
+### Config table corrections (verified 2026-10-01)
+
+Three errors lived in the table above and shipped more than once:
+- **Waunakee's Kit URL** `waunakee-market-report` returns **404**. The live one is
+  `waunakee-wi-housing-market-update`. All six `*-wi-housing-market-update` URLs return 200.
+- **Hero images were crossed.** Waunakee listed Sun Prairie's photo. John supplied the
+  authoritative list in September 2026; `generator/data.js` holds it and is the source of truth.
+- Verify a config value before trusting it. This table is a convenience copy, not the system of record.
+
+### Titles and metas must be EVERGREEN
+
+No figures in either field. A number baked into a title or meta is true for one month and
+quietly false afterwards, and the six-week no-touch rule means nobody goes back to check.
+In October 2026 five of seven pages still carried September figures, and Middleton's meta
+said buyers paid "over asking" when they paid 2.03% under. `generator/validate.js` now fails
+the build if a digit appears in either field.
+
+### John's Take comes from the Airtable field, never the Notes field
+
+The Notes field holds raw MLS research. It names other brokers' listings as stale, carries
+internal asides, and is working material. Publishing it is a professional problem. Use the
+**John's Take** field, verbatim, split on its paragraph breaks. Same for **Speakable Answer
+Line** and **Market Summary Line**.
 
 ### Shared URLs
 - Home valuation: `https://integrityhomeswi.com/evaluation`

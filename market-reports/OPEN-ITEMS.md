@@ -6,6 +6,10 @@ Last updated 2026-10-01, after the October build.
 2. **Empty the Script area on `/wisco-hub`.** Still holds the old broken schema. Do not edit it, empty it. See `skill/references/lofty-platform.md`.
 3. **Set `og:image` per page in the Lofty SEO panel.** The panel overrides pasted HTML. Authoritative list is the `heroImg` field per city in `generator/data.js`.
 
+## Needs John's decision
+- **Archive section and ItemList schema node.** Both are absent by choice: 26 of 28 dated archive URLs are client-side JS redirect stubs that bounce straight back to the permanent page, so linking them is circular. The skill mandates an ItemList. Restore them, or amend the skill to say archives stay out while the stubs redirect?
+- **"What's Changed" renders 4 stat cards plus 1 combined chart.** The skill asks for 4 separate charts. The cards carry the same four measures more compactly. Keep as is, or build the four charts?
+
 ## Waiting on John
 - **Five more SCWMLS Comparison Reports** (Sun Prairie, DeForest, Verona, Waunakee, Middleton) if those pages should carry zip tables. Only Madison had one for October, so the other six render no zip section. The city Snapshot PDFs carry no zip data at all this cycle.
 

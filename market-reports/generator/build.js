@@ -26,7 +26,13 @@ const TITLES = {
 // ---------- helpers ----------
 const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const money = n => "$" + Number(n).toLocaleString("en-US");
-const pct = v => (v*100).toFixed(1).replace(/\.0$/,"") + "%";
+// Keep two decimals under 1%, or a sale-to-list figure like 0.07% rounds to 0.1%
+// and the page then disagrees with itself between sections.
+const pct = v => {
+  const n = v * 100;
+  const s = Math.abs(n) < 1 ? n.toFixed(2) : n.toFixed(1);
+  return s.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "") + "%";
+};
 const signed = v => (v>0?"+":"") + pct(v);
 const days = v => (v>0?"+":"") + v + (Math.abs(v)===1?" day":" days");
 const cls = v => v>0?"chg-up":v<0?"chg-down":"chg-flat";
@@ -34,11 +40,63 @@ const arrow = v => v>0?"\u2191":v<0?"\u2193":"\u2192";
 const monthName = s => s.replace(/-/," ").replace(/\b\w/g,c=>c.toUpperCase()).replace(/\/$/,"");
 
 // ---------- JSON-LD ----------
+// The canonical identity nodes, embedded IN FULL on every page. A bare {"@id": ...}
+// does not resolve across documents, so a trimmed node leaves the entity effectively
+// undefined for Google on that URL. Mirrors the live homepage graph.
+const CDN = "https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild";
+const ORG_NODE = () => ({
+  "@type":["Organization","RealEstateAgent"],"@id":SITE+"/#org",
+  "name":"John Reuter - Integrity Homes","legalName":"Integrity Homes of Wisconsin",
+  "alternateName":["Integrity Homes","IntegrityHomesWI"],"url":SITE+"/",
+  "logo":CDN+"/h200_20251213_d2364072487347e4-png.webp",
+  "image":CDN+"/20251213_d55b4c32cc4447e3.jpeg",
+  "telephone":"+1-608-669-4226","email":"john@integrityhomeswi.com",
+  "address":{"@type":"PostalAddress","streetAddress":"1025 Quinn Drive Ste 100",
+    "addressLocality":"Waunakee","addressRegion":"WI","postalCode":"53597","addressCountry":"US"},
+  "geo":{"@type":"GeoCoordinates","latitude":43.19163,"longitude":-89.41845},
+  "areaServed":[
+    {"@type":"GeoCircle","geoMidpoint":{"@type":"GeoCoordinates","latitude":43.0731,"longitude":-89.4012},"geoRadius":40000},
+    {"@type":"AdministrativeArea","name":"Dane County, Wisconsin"},
+    {"@type":"City","name":"Madison, Wisconsin"},{"@type":"City","name":"Waunakee, Wisconsin"},
+    {"@type":"City","name":"Sun Prairie, Wisconsin"},{"@type":"City","name":"Verona, Wisconsin"},
+    {"@type":"City","name":"Middleton, Wisconsin"},{"@type":"City","name":"DeForest, Wisconsin"},
+    {"@type":"City","name":"Windsor, Wisconsin"}],
+  "knowsAbout":["VA Home Loans","Military Relocation","Madison WI Real Estate","Dane County Housing Market","First-Time Home Buyers","Home Seller Representation","Hero Savings Programs"],
+  "memberOf":[
+    {"@type":"Organization","name":"National Association of REALTORS®","url":"https://www.nar.realtor/"},
+    {"@type":"Organization","name":"Wisconsin REALTORS® Association","url":"https://www.wra.org/"},
+    {"@type":"Organization","name":"South Central Wisconsin MLS","alternateName":"SCWMLS","url":"https://www.scwmls.com/"}],
+  "founder":{"@id":SITE+"/#john"},
+  "award":["2024 RASCW Good Neighbor Award"],
+  "sameAs":["https://rewardourheroes.com","https://theveteranrealtor.com",
+    "https://www.facebook.com/johnreuter.integrityhomes",
+    "https://www.linkedin.com/company/john-reuter-integrity-homes/",
+    "https://www.youtube.com/@johnreuter-integrityhomes",
+    "https://www.instagram.com/johnreuterintegrityhomes",
+    "https://www.tiktok.com/@integrityhomeswi"]
+});
+const PERSON_NODE = () => ({
+  "@type":"Person","@id":SITE+"/#john","name":"John Reuter","jobTitle":"Broker/Owner",
+  "description":"Broker/Owner of Integrity Homes in Dane County, Wisconsin, a retired United States Air Force veteran, and founder of the Reward Our Heroes Foundation. Ranked in the top 3% of SCWMLS agents and teams by closed sales volume.",
+  "url":SITE+ABOUT,"image":CDN+"/20251223_1fc6d6e4c5a3484f.jpeg",
+  "telephone":"+1-608-669-4226","email":"john@integrityhomeswi.com",
+  "worksFor":{"@id":SITE+"/#org"},
+  "alumniOf":{"@type":"Organization","name":"United States Air Force"},
+  "knowsAbout":["VA Home Loans","Military Relocation","Madison WI Real Estate","Dane County Housing Market"],
+  "hasCredential":{"@type":"EducationalOccupationalCredential",
+    "credentialCategory":"Real Estate Broker License","identifier":"58480-90",
+    "recognizedBy":{"@type":"GovernmentOrganization","name":"Wisconsin Department of Safety and Professional Services"}},
+  "award":["2024 RASCW Good Neighbor Award",
+    "FastExpert 2026 Top 15 Real Estate Agent, Windsor, WI",
+    "FastExpert 2026 Top 15 Real Estate Agent, Waterloo, WI"],
+  "sameAs":["https://theveteranrealtor.com"]
+});
+
 function graph(city, v, url, title, desc, faqs) {
   const id = SITE + url;
   const nodes = [
-    {"@type":["Organization","RealEstateAgent"],"@id":SITE+"/#org","name":"John Reuter - Integrity Homes","url":SITE+"/","logo":"https://cdn.lofty.com/image/fs/341054835208155/website/20980/cmsbuild/h200_20251213_d2364072487347e4-png.webp","telephone":"+1-608-669-4226"},
-    {"@type":"Person","@id":SITE+"/#john","name":"John Reuter","jobTitle":"Broker/Owner","url":SITE+ABOUT,"worksFor":{"@id":SITE+"/#org"}},
+    ORG_NODE(),
+    PERSON_NODE(),
     {"@type":"WebSite","@id":SITE+"/#website","url":SITE+"/","name":"Integrity Homes","publisher":{"@id":SITE+"/#org"},"inLanguage":"en-US"},
     {"@type":"Article","@id":id+"#article","headline":title,"description":desc,
      "image":v.ogImg||IMG,
@@ -49,6 +107,8 @@ function graph(city, v, url, title, desc, faqs) {
     {"@type":"WebPage","@id":id+"#webpage","url":id,"name":title,
      "datePublished":D.created,"dateModified":D.snapshot,
      "isPartOf":{"@id":SITE+"/#website"},"about":{"@id":id+"#place"},
+     "significantLink":[SITE+(v.hub||HUB),SITE+(v.hfs||"/homes-for-sale/"),SITE+EVAL,
+       ...(v.schoolUrl?[SITE+v.schoolUrl]:[]),ROH,SITE+ABOUT],
      "primaryImageOfPage":{"@type":"ImageObject","url":v.ogImg||IMG},
      "breadcrumb":{"@id":id+"#breadcrumb"},"inLanguage":"en-US"},
     {"@type":"BreadcrumbList","@id":id+"#breadcrumb","itemListElement":[
@@ -56,8 +116,11 @@ function graph(city, v, url, title, desc, faqs) {
       {"@type":"ListItem","position":2,"name":"Market Reports","item":SITE+HUB},
       {"@type":"ListItem","position":3,"name":city}]},
     {"@type":"Place","@id":id+"#place","name":city+", Wisconsin",
+     "address":{"@type":"PostalAddress","addressLocality":city,"addressRegion":"WI",
+       ...(v.zip?{"postalCode":v.zip}:{}),"addressCountry":"US"},
      "geo":{"@type":"GeoCoordinates","latitude":v.lat,"longitude":v.lng},
-     "containedInPlace":{"@type":"AdministrativeArea","name":"Dane County, Wisconsin"}},
+     "containedInPlace":{"@type":"AdministrativeArea","name":"Dane County, Wisconsin",
+       "containedInPlace":{"@type":"State","name":"Wisconsin"}}},
     {"@type":"Dataset","@id":id+"#marketsnapshot","name":city+" housing market snapshot, "+D.month,
      "description":"SCWMLS city-area data for "+city+", Wisconsin based on "+D.closings+" closings, snapshot "+D.snapshot+".",
      "datePublished":D.snapshot,"dateModified":D.snapshot,"creator":{"@id":SITE+"/#org"},
@@ -116,14 +179,21 @@ function bars(v, city) {
   return s + "</svg>";
 }
 
+// The chart renders twice per page, so the title id has to be unique or the two
+// aria-labelledby references collide and the second chart is unlabelled.
+let yoySeq = 0;
+// "vs. September 2026 last year" is nonsense. Name the actual prior period.
+const priorPeriod = () => D.closings.replace(/(\d{4})\s*$/, (m, y) => String(Number(y) - 1));
+
 function yoyChart(v, city) {
   const items = [["Median Price",v.medYoY],["Sales Count",v.salesYoY],["$/SqFt",v.sqftYoY]];
   const max = Math.max(0.2, ...items.map(i=>Math.abs(i[1])));
-  let s = `<svg viewBox="0 0 700 260" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="y-t">
-<title id="y-t">${esc(city)} year over year comparison, ${D.month}</title>
+  const tid = "y-t-" + (++yoySeq);
+  let s = `<svg viewBox="0 0 700 260" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="${tid}">
+<title id="${tid}">${esc(city)} year over year comparison, ${D.month}</title>
 <rect width="700" height="260" fill="transparent"></rect>
 <line x1="60" y1="140" x2="680" y2="140" stroke="#1e3a5f" stroke-width="1.5" stroke-dasharray="4 3"></line>
-<text x="16" y="20" font-family="Inter,sans-serif" font-size="11" fill="#718096">Change vs. ${esc(D.closings)} last year</text>`;
+<text x="16" y="20" font-family="Inter,sans-serif" font-size="11" fill="#718096">Change vs. ${esc(priorPeriod())}</text>`;
   items.forEach(([label,val],i)=>{
     const x = 140 + i*180, hgt = Math.abs(val)/max*95, up = val>=0;
     s += `<rect x="${x}" y="${up?140-hgt:140}" width="56" height="${Math.max(2,hgt).toFixed(0)}" rx="3" fill="${up?"#c9a227":"#dc2626"}"></rect>`;
@@ -149,12 +219,12 @@ function faqs(city, v) {
     ["Is "+city+" a buyer's or seller's market?",
      city+' is a '+v.typePlain+' with '+v.sup.toFixed(2)+' months of supply. The tightest price range is '+band(v.tight)+' at '+v.tightSup.toFixed(2)+' months.'],
     ['How many homes are for sale in '+city+' right now?',
-     'As of '+D.snapshot+' there are '+v.active+' active listings and '+v.pending+' homes pending in '+city+', against an average of '+v.salesMo+' sales per month.'],
+     'As of '+D.snapshot+' there are '+v.active+' active listings and '+v.pending+(v.pending===1?' home pending in ':' homes pending in ')+city+', against an average of '+v.salesMo+' sales per month.'],
     ['How many homes sold in '+city+' in '+D.closings+'?',
      v.sales+' homes sold in '+city+' in '+D.closings+', '+(v.salesYoY>=0?'up':'down')+' '+pct(Math.abs(v.salesYoY))+' from '+v.priorSales+' a year earlier. Total volume was '+money(v.vol)+'.'],
     ['Can buyers negotiate in '+city+'?',
      v.ask>=0
-      ? 'Not easily. Buyers paid an average of '+pct(v.ask)+' over asking in '+D.closings+'. In the tightest range, '+band(v.tight)+', expect to offer at or above list price.'
+      ? 'Not easily. Buyers paid an average of '+pct(v.ask)+' over asking in '+D.closings+'. '+(v.tightSup<1?'In the tightest range, '+band(v.tight)+', expect to offer at or above list price.':'Even the tightest range, '+band(v.tight)+', sits at '+v.tightSup.toFixed(2)+' months, so there is room to negotiate terms rather than bid up the price.')
       : 'Somewhat. Buyers paid an average of '+pct(Math.abs(v.ask))+' under asking in '+D.closings+', which is more room than most of Dane County offered this month.'],
     ['Are home prices going up or down in '+city+'?',
      'The '+D.closings+' median is '+(v.medYoY>=0?'up':'down')+' '+pct(Math.abs(v.medYoY))+' year over year. Average price per square foot is $'+v.sqft+', '+(v.sqftYoY>=0?'up':'down')+' '+pct(Math.abs(v.sqftYoY))+' from $'+priorSqft+', which is the cleaner read on underlying value.'],
@@ -172,7 +242,7 @@ function faqs(city, v) {
      'New listings came in at '+v.newL+', '+(v.newLYoY>=0?'up':'down')+' '+pct(Math.abs(v.newLYoY))+', and new pendings at '+v.newP+', '+(v.newPYoY>=0?'up':'down')+' '+pct(Math.abs(v.newPYoY))+'. Those two together are the best early read on the months ahead.']
   ];
   if (v.empty) f.push(['Which price range has no homes for sale in '+city+'?',
-    'There are currently no active listings between '+band(v.empty)+'. That is an absence of inventory rather than a competitive hot zone, and buyers at that price point will need to consider neighboring communities.']);
+    'There are currently no active listings in the '+band(v.empty)+' range. That is an absence of inventory rather than a competitive hot zone, and buyers at that price point will need to consider neighboring communities.']);
   if (v.base) f.push(['Are home prices going up in '+city+' long term?',
     'Yes. '+city+' has gone from a '+money(v.base)+' median in '+v.baseYr+' to '+money(v.ytdMed)+' year to date, an increase of '+pct(v.appr)+'.']);
   f.push(['How does '+city+' compare with the rest of Dane County?',

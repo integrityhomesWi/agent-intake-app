@@ -69,6 +69,7 @@ const CSS = `
 .mr-table tr:nth-child(even) td{background:var(--color-bg-soft)}
 .mr-table tr:last-child td{border-bottom:none;font-weight:700}
 .hot-row td:first-child{color:var(--color-hot);font-weight:700}
+.tight-row td:first-child{color:var(--color-primary);font-weight:700}
 .none-row td{color:var(--color-text-muted);font-style:italic}
 .footnote{font-size:.75rem;color:var(--color-text-muted);margin-top:.4rem}
 .mr-chart-wrap{margin:1.5rem 0}
@@ -112,7 +113,7 @@ const CSS = `
 .yoy-card .current{font-family:var(--font-heading);font-size:1.5rem;font-weight:700;color:var(--color-primary)}
 .yoy-card .prior{font-size:.82rem;color:var(--color-text-muted);margin-top:.2rem}
 .yoy-card .delta{font-size:.88rem;font-weight:700;margin-top:.3rem}
-.sticky-cta{position:fixed;bottom:-90px;left:0;right:0;z-index:999;background:var(--color-primary-dark);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;box-shadow:0 -4px 20px rgba(0,0,0,.25);transition:bottom .3s ease}
+.sticky-cta{position:sticky;bottom:-90px;left:0;right:0;z-index:999;background:var(--color-primary-dark);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;box-shadow:0 -4px 20px rgba(0,0,0,.25);transition:bottom .3s ease}
 .sticky-cta.visible{bottom:0}
 .cta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1rem}
 .cta-card{background:var(--color-bg-soft);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:1.2rem;text-align:left}
@@ -194,7 +195,7 @@ function renderCity(city, v) {
     const hot = sup < 1;
     const tightest = lbl === v.tight;
     const note = hot ? "Hot zone" : tightest ? "Tightest" : "";
-    return `<tr${hot || tightest ? ' class="hot-row"' : ""}><td>${esc(lbl)}</td><td>${sup.toFixed(2)}</td><td>${note}</td></tr>`;
+    return `<tr${hot ? ' class="hot-row"' : tightest ? ' class="tight-row"' : ""}><td>${esc(lbl)}</td><td>${sup.toFixed(2)}</td><td>${note}</td></tr>`;
   }).join("\n              ");
 
   // Fewer than ten sales in a zip is a small sample: shown for completeness, never featured.
@@ -305,7 +306,7 @@ function renderCity(city, v) {
 
     <div class="schools-section">
       <h2>${esc(city)} Schools</h2>
-      <p>${esc(city)} is served by the <strong>${esc(v.school)}</strong>, a consistent factor in buyer demand and home values across the community.</p>
+      <p>${esc(city)} is served by the <strong>${esc(v.school)}</strong>, a consistent factor in buyer demand and home values across the community. For neighborhoods, schools, and what living here is actually like, see the <a href="${SITE}${v.hub}">${esc(city)} City Hub</a>.</p>
       <a href="${SITE}${v.schoolUrl}" class="btn btn-navy">${esc(v.school)} Guide</a>
     </div>
 
