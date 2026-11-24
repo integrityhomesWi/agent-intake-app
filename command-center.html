@@ -194,6 +194,17 @@
   .gcitbl tr.totrow td{font-weight:700;color:var(--navy);border-top:2px solid var(--line);border-bottom:none;background:#f7f9fb}
   .gcitbl td.totcol,.gcitbl th.totcol{border-left:2px solid var(--line);font-weight:700;color:var(--green)}
   .gcinote{font-size:11.5px;color:var(--muted);margin-top:10px}
+  /* Prospects tab - same table treatment as the GCI rollup */
+  .pwrap{overflow-x:auto}
+  .ptbl{border-collapse:collapse;font-size:12.5px;min-width:100%}
+  .ptbl th,.ptbl td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  .ptbl thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;background:#eef2f6}
+  .ptbl tbody tr:hover td{background:#f7f9fb}
+  .ptbl .pname{font-weight:600;color:var(--navy)}
+  .ptbl input,.ptbl select{font:inherit;border:1px solid transparent;border-radius:5px;padding:3px 5px;background:transparent;min-width:84px}
+  .ptbl input:hover,.ptbl select:hover{border-color:var(--line);background:#fff}
+  .ptbl input:focus,.ptbl select:focus{border-color:var(--blue);background:#fff;outline:none}
+  .pempty{color:var(--muted);font-size:13px;padding:10px 2px}
   @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.qgrid{grid-template-columns:repeat(2,1fr)}.gcols,.gcols2,.pl2{grid-template-columns:1fr}.vips{grid-template-columns:repeat(2,1fr)}.tblhead{display:none}.dhead{grid-template-columns:1fr auto auto;row-gap:8px}.dhead .ms,.dhead .emc,.dhead .h-side,.dhead .h-price,.dhead .h-agent,.dhead .h-title,.dhead .h-next,.dhead .h-sched{display:none}.grid{grid-template-columns:1fr}}
   .livebar{font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
@@ -228,6 +239,7 @@
   <div class="maintabs">
     <button class="mtab active" data-v="deals">Deals</button>
     <button class="mtab" data-v="listings">Listings</button>
+    <button class="mtab" data-v="prospects">Prospects</button>
     <button class="mtab" data-v="goals">Goals &amp; Pipeline</button>
   </div>
   <div id="view-deals" class="view active">
@@ -309,6 +321,21 @@
     <div class="gsec"><div class="gtitle">VIPs</div><div class="vips" id="g-vips"></div><button class="addln" data-k="vips">+ add</button></div>
     <p class="legend"><b>Closed YTD</b>, <b>Volume</b>, and the <b>GCI by Lead Source</b> table above come straight from the Closed Deals table in the tracker, so they match what Airtable says. Month and quarter goals, cap, elite, pipeline, referrals, and VIPs still save in this browser only — the tracker now has real tables waiting for them (Monthly Goals, Quarterly Goals, Annual Settings, Pipeline Notes, Referrals, VIP Clients), but this page has not been wired to them yet.</p>
   </div><!-- end view-goals -->
+
+  <div id="view-prospects" class="view">
+    <div class="gsec">
+      <div class="gtitle">Seller Prospects <span style="font-weight:400;color:var(--muted);font-size:12px">— listings coming soon, not live yet</span></div>
+      <p class="legend">Listings with status <b>Coming Soon</b>. Everything here saves straight into that listing's record, so when it goes live you only change the status - the seller, photo and sign work all carry over. To <b>add</b> a prospect, create the listing in the tracker and set its status to Coming Soon.</p>
+      <div class="pstats" id="sp-stats" style="margin:6px 0 10px;font-size:13.5px;color:var(--ink)"></div>
+      <div class="pwrap"><table class="ptbl" id="sp-tbl"></table></div>
+    </div>
+    <div class="gsec">
+      <div class="gtitle">Buyer Prospects <span style="font-weight:400;color:var(--muted);font-size:12px">— buyers working with us, no offer yet</span></div>
+      <p class="legend">Everyone on the Buyer Leads table. Saves straight back into that record. A buyer who writes an offer becomes a row on Deals; this list is who you are still working with.</p>
+      <div class="pstats" id="bp-stats" style="margin:6px 0 10px;font-size:13.5px;color:var(--ink)"></div>
+      <div class="pwrap"><table class="ptbl" id="bp-tbl"></table></div>
+    </div>
+  </div><!-- end view-prospects -->
 
   <div id="view-listings" class="view">
     <div class="toolbar">
@@ -412,6 +439,7 @@ function wireRequestBoxes(){
 
 let deals=[];                 // Active Transactions + Closed 2026
 let LST=[];                   // Listings
+let BLD=[];                   // Buyer Leads (shown on the Prospects tab)
 let MY_CLOSED=[], TEAM_CLOSED=[];
 let LIVE=[], ACT=[];
 function recompute(){ LIVE=deals.filter(d=>!d.cancelled); ACT=LIVE.filter(d=>!d.closed); }
@@ -655,6 +683,7 @@ function loadDeals(){
     deals=rows.filter(r=>r.source==='active').map(adaptActive)
          .concat(rows.filter(r=>r.source==='closed').map(adaptClosed));
     LST=rows.filter(r=>r.source==='listing').map(adaptListing);
+    BLD=rows.filter(r=>r.source==='buyerlead').map(adaptBuyerLead);
     // Year-scoped on purpose. Everything downstream of these two is a
     // year-to-date figure - the Volume headline, the per-quarter deal lists,
     // the Team Transactions counters - so without the filter they would carry
@@ -682,7 +711,7 @@ function saveCell(tab,key,updates){
     setLive('ok','✓ Sent to the tracker');
   }catch(e){ setLive('err','That change did not send. Check your connection.'); }
 }
-function afterLoad(){ paintYearPicker(); populateAgents(); recompute(); stats(); render(); renderListings(); renderGoals(); }
+function afterLoad(){ paintYearPicker(); populateAgents(); recompute(); stats(); render(); renderListings(); renderProspects(); renderGoals(); }
 function populateAgents(){
   const sel=document.getElementById('agentF');const cur=sel.value;
   sel.innerHTML='<option value="">All agents</option>';
@@ -1228,6 +1257,79 @@ document.querySelectorAll('.addref').forEach(b=>b.addEventListener('click',()=>{
   const k=b.dataset.k; const direction=k==='inbound'?'Inbound':'Outbound';
   addGoalRecord('referrals',{name:'',direction:direction},(id)=>{G[k].push({name:'',closing:'',contact:''});REC[k].push(id);renderRefs2();});
 }));
+// ====================== PROSPECTS TAB ======================
+// Two lists that were previously invisible here: listings that are Coming
+// Soon (still in the Listings table, so going live is a status change rather
+// than a re-entry), and the Buyer Leads table, which the dashboard has always
+// loaded and never shown. Both write back through the same saveCell path the
+// Listings tab uses, keyed on the record's primary field.
+function adaptBuyerLead(r){
+  return { tab:r.tab, key:r.key, name:r.buyer_1_name||"", _raw:r };
+}
+const HOUSE_TO_SELL=['','No','Yes - not listed','Yes - listed','Yes - under contract','Unsure'];
+function pOpts(arr,cur){return arr.map(o=>`<option value="${o}"${o===cur?' selected':''}>${o||'—'}</option>`).join('');}
+// field: [label, slug, kind] - kind is text, date, or a list of select options
+const SP_FIELDS=[
+  ['Seller','seller_1_name','text'],
+  ['Anticipated list','list_date','date'],
+  ['Anticipated price','list_price','text'],
+  ['Agreement signed','listing_agreement_signed','date'],
+  ['Photos','pictures_drone_video_status',['','Not Ordered','Ordered','Done']],
+  ['Sign','sign_post_status',['','No','Ordered','Installed','Not Installed']],
+  ['Notes','notes','text']
+];
+const BP_FIELDS=[
+  ['Agency signed','buyer_agency_start','date'],
+  ['Target move','target_move_date','date'],
+  ['Price range','price_range','text'],
+  ['Pre-approval','pre_approval_status','text'],
+  ['Areas of interest','areas_of_interest','text'],
+  ['House to sell','has_house_to_sell',HOUSE_TO_SELL],
+  ['Notes','notes','text']
+];
+function pCell(fields,rowIdx,raw,which){
+  return fields.map(([lab,slug,kind])=>{
+    const v=String(raw[slug]==null?'':raw[slug]);
+    const ctl=Array.isArray(kind)
+      ? `<select data-p="${which}" data-i="${rowIdx}" data-f="${slug}">${pOpts(kind,v)}</select>`
+      : `<input type="${kind==='date'?'date':'text'}" data-p="${which}" data-i="${rowIdx}" data-f="${slug}" value="${v.replace(/"/g,'&quot;')}">`;
+    return `<td>${ctl}</td>`;
+  }).join('');
+}
+function renderProspects(){
+  const sp=LST.filter(l=>/coming soon/i.test(l.status));
+  paintProspectTable('sp', sp, SP_FIELDS, 'Property',
+    l=>(l.addr||'').split(',')[0]||'(no address)',
+    `<b>${sp.length}</b> coming soon`,
+    'Nothing marked Coming Soon yet. Set a listing status to Coming Soon in the tracker and it shows up here.');
+  paintProspectTable('bp', BLD, BP_FIELDS, 'Buyer',
+    b=>b.name||'(no name)',
+    `<b>${BLD.length}</b> buyer prospect${BLD.length===1?'':'s'}`,
+    'No buyer leads yet. They arrive from the intake app, or add one in the tracker.');
+  wireProspects();
+}
+function paintProspectTable(which, rows, fields, firstCol, labelOf, stat, emptyMsg){
+  document.getElementById(which+'-stats').innerHTML = rows.length
+    ? stat
+    : `<span class="pempty">${emptyMsg}</span>`;
+  document.getElementById(which+'-tbl').innerHTML = rows.length
+    ? '<thead><tr><th>'+firstCol+'</th>'+fields.map(f=>`<th>${f[0]}</th>`).join('')+'</tr></thead><tbody>'
+      + rows.map((r,i)=>`<tr><td class="pname">${labelOf(r)}</td>`+pCell(fields,i,r._raw||{},which)+'</tr>').join('')
+      + '</tbody>'
+    : '';
+}
+function wireProspects(){
+  document.querySelectorAll('#view-prospects [data-p]').forEach(el=>{
+    el.addEventListener('change',()=>{
+      const which=el.dataset.p, i=+el.dataset.i, f=el.dataset.f;
+      const row = which==='sp' ? LST.filter(l=>/coming soon/i.test(l.status))[i] : BLD[i];
+      if(!row) return;
+      if(row._raw) row._raw[f]=el.value;
+      saveCell(row.tab,row.key,{[f]:el.value});
+    });
+  });
+}
+
 // ====================== LISTINGS TAB ======================
 // LST is loaded from the sheet's Listings tab in loadDeals. It used to be a
 // 17-row hardcoded LISTINGS_SEED saved into browser localStorage, which meant
@@ -1331,6 +1433,7 @@ document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
   t.classList.add('active');document.getElementById('view-'+t.dataset.v).classList.add('active');
   if(t.dataset.v==='goals')renderGoals();
   if(t.dataset.v==='listings')renderListings();
+  if(t.dataset.v==='prospects')renderProspects();
 }));
 
 // go live
