@@ -197,10 +197,15 @@
   /* Prospects tab - same table treatment as the GCI rollup */
   .pwrap{overflow-x:auto}
   .ptbl{border-collapse:collapse;font-size:12.5px;min-width:100%}
-  .ptbl th,.ptbl td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  .ptbl th,.ptbl td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+  .ptbl td.pname{white-space:normal;min-width:240px;max-width:300px;padding-top:8px}
+  .ptbl .pnm{font-weight:600;color:var(--navy);margin-bottom:4px}
+  .ptbl textarea.pnotes{display:block;width:100%;font:inherit;font-size:12px;line-height:1.35;color:var(--ink);
+    border:1px solid transparent;border-radius:5px;padding:3px 5px;background:transparent;resize:vertical;min-height:46px}
+  .ptbl textarea.pnotes:hover{border-color:var(--line);background:#fff}
+  .ptbl textarea.pnotes:focus{border-color:var(--blue);background:#fff;outline:none}
   .ptbl thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;background:#eef2f6}
   .ptbl tbody tr:hover td{background:#f7f9fb}
-  .ptbl .pname{font-weight:600;color:var(--navy)}
   .ptbl input,.ptbl select{font:inherit;border:1px solid transparent;border-radius:5px;padding:3px 5px;background:transparent;min-width:84px}
   .ptbl input:hover,.ptbl select:hover{border-color:var(--line);background:#fff}
   .ptbl input:focus,.ptbl select:focus{border-color:var(--blue);background:#fff;outline:none}
@@ -1284,8 +1289,7 @@ const SP_FIELDS=[
   ['Anticipated price','list_price','text'],
   ['Agreement signed','listing_agreement_signed','date'],
   ['Photos','pictures_drone_video_status',['','Not Ordered','Ordered','Done']],
-  ['Sign','sign_post_status',['','No','Ordered','Installed','Not Installed']],
-  ['Notes','notes','text']
+  ['Sign','sign_post_status',['','No','Ordered','Installed','Not Installed']]
 ];
 const BP_FIELDS=[
   ['Agency signed','buyer_agency_start','date'],
@@ -1293,8 +1297,7 @@ const BP_FIELDS=[
   ['Price range','price_range','text'],
   ['Pre-approval','pre_approval_status','text'],
   ['Areas of interest','areas_of_interest','text'],
-  ['House to sell','has_house_to_sell',HOUSE_TO_SELL],
-  ['Notes','notes','text']
+  ['House to sell','has_house_to_sell',HOUSE_TO_SELL]
 ];
 function pCell(fields,rowIdx,raw,which){
   return fields.map(([lab,slug,kind])=>{
@@ -1324,7 +1327,8 @@ function prospectDetailHTML(which,i,row){
   const cats = which==='sp' ? SCHEMA.listings : SCHEMA.buyerleads;
   if(!cats||!cats.length) return '<div class="sub2">Loading the field list…</div>';
   const shown = new Set((which==='sp'?SP_FIELDS:BP_FIELDS).map(f=>f[1]));
-  const skip = new Set(which==='sp' ? ['address','status'] : ['buyer_1_name']);
+  // notes render under the address in the summary row, not twice
+  const skip = new Set(which==='sp' ? ['address','status','notes'] : ['buyer_1_name','notes']);
   const raw = row._raw||{};
   const out=[];
   cats.forEach(cat=>{
@@ -1351,7 +1355,10 @@ function paintProspectTable(which, rows, fields, firstCol, labelOf, stat, emptyM
   document.getElementById(which+'-tbl').innerHTML = rows.length
     ? '<thead><tr><th></th><th>'+firstCol+'</th>'+fields.map(f=>`<th>${f[0]}</th>`).join('')+'</tr></thead><tbody>'
       + rows.map((r,i)=>
-          `<tr data-prow="${which}-${i}"><td class="pcaret" data-ptog="${which}-${i}">&#9654;</td><td class="pname">${labelOf(r)}</td>`
+          `<tr data-prow="${which}-${i}"><td class="pcaret" data-ptog="${which}-${i}">&#9654;</td>`
+          + `<td class="pname"><div class="pnm">${labelOf(r)}</div>`
+          + `<textarea class="pnotes" rows="3" placeholder="Notes…" data-p="${which}" data-i="${i}" data-f="notes">`
+          + String((r._raw&&r._raw.notes)||'').replace(/</g,'&lt;') + `</textarea></td>`
           + pCell(fields,i,r._raw||{},which) + '</tr>'
           + `<tr class="pdetail" data-pdet="${which}-${i}"><td colspan="${fields.length+2}">`
           + `<p class="pdhead">Everything else on this record</p>`
