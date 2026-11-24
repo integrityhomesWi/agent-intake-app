@@ -859,11 +859,21 @@ let REC={monthly:Array(12).fill(null),quarterly:Array(4).fill(null),annual:null,
   sellers:[],buyers:[],inbound:[],outbound:[],vips:[]};
 const CUR_YEAR_STR=String(today.getFullYear());
 const gnum=v=>parseInt(v)||0;
+// Monthly Goals and Quarterly Goals are keyed only by position (month 1-12,
+// quarter 1-4), so rows for two different years land in the same slot and the
+// last one loaded wins - and because REC.monthly/REC.quarterly then point at
+// that winner, editing a goal would write back to the wrong year's record.
+// Both fields already carry the year in their text ("Jan 2027", "Q1 2027"),
+// so match on that. A row with no year at all is still accepted, so older
+// rows written before this convention keep working.
+const yearIn=s=>{const m=String(s||"").match(/\b(20\d{2})\b/);return m?m[1]:null;};
+const otherYear=s=>{const y=yearIn(s);return y!==null&&y!==CUR_YEAR_STR;};
 function applyGoalsPayload(res){
   const monthOf=r=>MONTHS.indexOf(String(r.month||"").split(" ")[0]);
   G.mGoals=Array(12).fill(0);G.mManual=Array(12).fill(0);G.elite=Array(12).fill("empty");
   REC.monthly=Array(12).fill(null);
   (res.monthlyGoals||[]).forEach(r=>{
+    if(otherYear(r.month)) return;
     const idx=r.month_order?r.month_order-1:monthOf(r);
     if(idx<0||idx>11) return;
     G.mGoals[idx]=Number(r.month_goal)||0;
@@ -873,6 +883,7 @@ function applyGoalsPayload(res){
   });
   G.qGoals=[0,0,0,0];REC.quarterly=[null,null,null,null];
   (res.quarterlyGoals||[]).forEach(r=>{
+    if(otherYear(r.quarter)) return;
     // Match the digit attached to the Q, not every digit in the string: the
     // Quarter field reads "Q1 2026", and stripping all non-digits turned that
     // into 12026, which failed the range check below and silently dropped
@@ -945,6 +956,20 @@ function deleteGoalRecord(table,recordId){
 function annualSave(fields){
   if(REC.annual){ saveGoalField('annualSettings',REC.annual,fields); return; }
   addGoalRecord('annualSettings',Object.assign({year:CUR_YEAR_STR},fields),(id)=>{ if(id) REC.annual=id; });
+}
+// Same idea for the month and quarter goals, and it is what makes a new year
+// work on its own: on 1 January no rows exist for the new year yet, so these
+// would otherwise be stuck at 0 with every edit silently dropped (saveGoalField
+// no-ops on a null recordId). Editing a goal now creates that year's row.
+function monthlySave(m,fields){
+  if(REC.monthly[m]){ saveGoalField('monthlyGoals',REC.monthly[m],fields); return; }
+  const seed={month:MONTHS[m]+' '+CUR_YEAR_STR,month_order:m+1,quarter:'Q'+(Math.floor(m/3)+1)};
+  addGoalRecord('monthlyGoals',Object.assign(seed,fields),(id)=>{ if(id) REC.monthly[m]=id; });
+}
+function quarterlySave(qi,fields){
+  if(REC.quarterly[qi]){ saveGoalField('quarterlyGoals',REC.quarterly[qi],fields); return; }
+  const seed={quarter:'Q'+(qi+1)+' '+CUR_YEAR_STR};
+  addGoalRecord('quarterlyGoals',Object.assign(seed,fields),(id)=>{ if(id) REC.quarterly[qi]=id; });
 }
 
 const MYNAME="John Reuter";
@@ -1021,10 +1046,10 @@ function renderGoals(){
     col.appendChild(tog);col.appendChild(dlist);
     qc.appendChild(col);
   }
-  qc.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('change',()=>{const qi=+i.dataset.q;G.qGoals[qi]=gnum(i.value);saveGoalField('quarterlyGoals',REC.quarterly[qi],{goal:G.qGoals[qi]});renderGoals();}));
-  qc.querySelectorAll('[data-mg]').forEach(i=>i.addEventListener('change',()=>{const m=+i.dataset.mg;G.mGoals[m]=gnum(i.value);saveGoalField('monthlyGoals',REC.monthly[m],{month_goal:G.mGoals[m]});renderGoals();}));
-  qc.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.add;G.mManual[m]=gnum(G.mManual[m])+1;saveGoalField('monthlyGoals',REC.monthly[m],{manual_closings_override:G.mManual[m]});renderGoals();}));
-  qc.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.mm;G.mManual[m]=Math.max(0,gnum(G.mManual[m])-1);saveGoalField('monthlyGoals',REC.monthly[m],{manual_closings_override:G.mManual[m]});renderGoals();}));
+  qc.querySelectorAll('[data-q]').forEach(i=>i.addEventListener('change',()=>{const qi=+i.dataset.q;G.qGoals[qi]=gnum(i.value);quarterlySave(qi,{goal:G.qGoals[qi]});renderGoals();}));
+  qc.querySelectorAll('[data-mg]').forEach(i=>i.addEventListener('change',()=>{const m=+i.dataset.mg;G.mGoals[m]=gnum(i.value);monthlySave(m,{month_goal:G.mGoals[m]});renderGoals();}));
+  qc.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.add;G.mManual[m]=gnum(G.mManual[m])+1;monthlySave(m,{manual_closings_override:G.mManual[m]});renderGoals();}));
+  qc.querySelectorAll('[data-mm]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=+b.dataset.mm;G.mManual[m]=Math.max(0,gnum(G.mManual[m])-1);monthlySave(m,{manual_closings_override:G.mManual[m]});renderGoals();}));
   qc.querySelectorAll('.qtoggle').forEach(t=>t.addEventListener('click',()=>{const el=document.getElementById('qd-'+t.dataset.qd);el.style.display=el.style.display==='none'?'block':'none';}));
   qc.querySelectorAll('.qdl[data-open]').forEach(r=>r.addEventListener('click',()=>openDeal(+r.dataset.open)));
 
@@ -1149,7 +1174,7 @@ function renderCap(){
 }
 const ECY=["empty","red","black","green"];
 function renderElite(){const el=document.getElementById('g-elite');el.innerHTML='';
-  G.elite.forEach((s,i)=>{const b=document.createElement('div');b.className='ebox '+(s==='empty'?'':s);b.addEventListener('click',()=>{G.elite[i]=ECY[(ECY.indexOf(G.elite[i])+1)%4];saveGoalField('monthlyGoals',REC.monthly[i],{elite_status:G.elite[i]});renderElite();});el.appendChild(b);});}
+  G.elite.forEach((s,i)=>{const b=document.createElement('div');b.className='ebox '+(s==='empty'?'':s);b.addEventListener('click',()=>{G.elite[i]=ECY[(ECY.indexOf(G.elite[i])+1)%4];monthlySave(i,{elite_status:G.elite[i]});renderElite();});el.appendChild(b);});}
 function renderLines(){['sellers','buyers'].forEach(k=>{const el=document.getElementById('g-'+k);el.innerHTML='';
   G[k].forEach((v,i)=>{const inp=document.createElement('input');inp.className='lninp';inp.value=v;inp.placeholder=k==='buyers'?'Buyer':'Seller – timing';
     inp.addEventListener('change',()=>{G[k][i]=inp.value;const rid=REC[k][i];if(rid)saveGoalField('pipelineNotes',rid,{note:inp.value});});
