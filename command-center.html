@@ -256,7 +256,7 @@
 
   <div id="view-goals" class="view">
     <div class="gsec">
-      <div class="gtitle"><span class="yr"></span> Goal Tracker — Actual &amp; Projected</div>
+      <div class="gtitle" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span><span class="yr"></span> Goal Tracker — Actual &amp; Projected</span><select id="yearPick" style="font:inherit;font-weight:600;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:#fff"></select><span id="yearNote" style="font-weight:400;color:var(--amber);font-size:12px"></span></div>
       <div class="ytd">
         <span class="ytd-l">Actual (closed)</span>
         <span class="ytd-n" id="g-ytd">0 / 45</span>
@@ -418,9 +418,15 @@ function recompute(){ LIVE=deals.filter(d=>!d.cancelled); ACT=LIVE.filter(d=>!d.
 const CNT=a=>a.reduce((s,d)=>s+(d.count||1),0);
 
 const today=new Date();today.setHours(0,0,0,0);
+// The year the dashboard is reporting on. Defaults to the real current year;
+// the picker on the Goals tab changes it. Every year-scoped figure reads this
+// rather than today's date, so next year's goals can be set up and checked
+// before January instead of being entered blind and hidden by the filters.
+let VIEW_YEAR=today.getFullYear();
+const curYearStr=()=>String(VIEW_YEAR);
 // Is this deal's closing date in the year the dashboard is currently showing?
 // Used anywhere a figure is meant to be year-to-date.
-const inCurYear=d=>!!d.close&&new Date(d.close+'T00:00:00').getFullYear()===today.getFullYear();
+const inCurYear=d=>!!d.close&&new Date(d.close+'T00:00:00').getFullYear()===VIEW_YEAR;
 const D=d=>Math.round((new Date(d+"T00:00:00")-today)/86400000);
 const md=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
 const mdl=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'short',day:'numeric'});
@@ -635,6 +641,12 @@ const LISTING_SELECTS={
 
 /* ---------- live load + save ---------- */
 function setLive(cls,msg){const b=document.getElementById('livebar');b.className='livebar '+cls;b.textContent=msg;if(cls==='ok')setTimeout(()=>{b.className='livebar';},2500);}
+// Split out of loadDeals so switching the viewed year can rebuild these
+// without refetching: every year's closings are already in `deals`.
+function rebuildClosed(){
+  MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME&&inCurYear(d));
+  TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME&&inCurYear(d));
+}
 function loadDeals(){
   setLive('load','Loading from the tracker…');
   const cb="__ihdeals_"+Date.now();
@@ -647,8 +659,7 @@ function loadDeals(){
     // year-to-date figure - the Volume headline, the per-quarter deal lists,
     // the Team Transactions counters - so without the filter they would carry
     // last year's closings forward and never reset in January.
-    MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME&&inCurYear(d));
-    TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME&&inCurYear(d));
+    rebuildClosed();
     recompute(); afterLoad();
     setLive('ok','✓ Live from the tracker · '+CNT(ACT)+' active · '+LST.length+' listings · '+MY_CLOSED.length+' of your closings');
     try{delete window[cb];}catch(e){}
@@ -671,7 +682,7 @@ function saveCell(tab,key,updates){
     setLive('ok','✓ Sent to the tracker');
   }catch(e){ setLive('err','That change did not send. Check your connection.'); }
 }
-function afterLoad(){ populateAgents(); recompute(); stats(); render(); renderListings(); renderGoals(); }
+function afterLoad(){ paintYearPicker(); populateAgents(); recompute(); stats(); render(); renderListings(); renderGoals(); }
 function populateAgents(){
   const sel=document.getElementById('agentF');const cur=sel.value;
   sel.innerHTML='<option value="">All agents</option>';
@@ -862,9 +873,9 @@ let G={
   sellers:[], buyers:[], inbound:[], outbound:[], vips:[]
 };
 // Parallel Airtable recordIds so edits know which row to write back to.
+let LAST_GOALS=null;
 let REC={monthly:Array(12).fill(null),quarterly:Array(4).fill(null),annual:null,
   sellers:[],buyers:[],inbound:[],outbound:[],vips:[]};
-const CUR_YEAR_STR=String(today.getFullYear());
 const gnum=v=>parseInt(v)||0;
 // Monthly Goals and Quarterly Goals are keyed only by position (month 1-12,
 // quarter 1-4), so rows for two different years land in the same slot and the
@@ -874,7 +885,7 @@ const gnum=v=>parseInt(v)||0;
 // so match on that. A row with no year at all is still accepted, so older
 // rows written before this convention keep working.
 const yearIn=s=>{const m=String(s||"").match(/\b(20\d{2})\b/);return m?m[1]:null;};
-const otherYear=s=>{const y=yearIn(s);return y!==null&&y!==CUR_YEAR_STR;};
+const otherYear=s=>{const y=yearIn(s);return y!==null&&y!==curYearStr();};
 function applyGoalsPayload(res){
   const monthOf=r=>MONTHS.indexOf(String(r.month||"").split(" ")[0]);
   G.mGoals=Array(12).fill(0);G.mManual=Array(12).fill(0);G.elite=Array(12).fill("empty");
@@ -907,7 +918,7 @@ function applyGoalsPayload(res){
   // then held that row's id, the first cap edit of the new year overwrote the
   // previous year's record. Rows with no Year at all are still accepted.
   const annualRows=(res.annualSettings||[]).filter(r=>!otherYear(r.year));
-  const yr=annualRows.find(r=>String(r.year)===CUR_YEAR_STR)||annualRows[0];
+  const yr=annualRows.find(r=>String(r.year)===curYearStr())||annualRows[0];
   if(yr){G.cap={goal:yr.cap_goal?String(yr.cap_goal):"",paid:yr.cap_paid?String(yr.cap_paid):""};REC.annual=yr.recordId;}
   else{G.cap={goal:"",paid:""};REC.annual=null;}
   const pn=res.pipelineNotes||[];
@@ -925,7 +936,9 @@ function applyGoalsPayload(res){
 function loadGoals(cb){
   const callback="__ihgoals_"+Date.now();
   window[callback]=function(res){
-    if(res&&res.ok) applyGoalsPayload(res);
+    // Kept so switching the viewed year can re-parse the same payload for a
+    // different year without another round trip - every year's rows are in it.
+    if(res&&res.ok){ LAST_GOALS=res; applyGoalsPayload(res); }
     try{delete window[callback];}catch(e){}
     if(s.parentNode)s.parentNode.removeChild(s);
     if(cb)cb();
@@ -968,7 +981,7 @@ function deleteGoalRecord(table,recordId){
 // on first edit instead of silently no-op'ing because REC.annual is null.
 function annualSave(fields){
   if(REC.annual){ saveGoalField('annualSettings',REC.annual,fields); return; }
-  addGoalRecord('annualSettings',Object.assign({year:CUR_YEAR_STR},fields),(id)=>{ if(id) REC.annual=id; });
+  addGoalRecord('annualSettings',Object.assign({year:curYearStr()},fields),(id)=>{ if(id) REC.annual=id; });
 }
 // Same idea for the month and quarter goals, and it is what makes a new year
 // work on its own: on 1 January no rows exist for the new year yet, so these
@@ -976,12 +989,12 @@ function annualSave(fields){
 // no-ops on a null recordId). Editing a goal now creates that year's row.
 function monthlySave(m,fields){
   if(REC.monthly[m]){ saveGoalField('monthlyGoals',REC.monthly[m],fields); return; }
-  const seed={month:MONTHS[m]+' '+CUR_YEAR_STR,month_order:m+1,quarter:'Q'+(Math.floor(m/3)+1)};
+  const seed={month:MONTHS[m]+' '+curYearStr(),month_order:m+1,quarter:'Q'+(Math.floor(m/3)+1)};
   addGoalRecord('monthlyGoals',Object.assign(seed,fields),(id)=>{ if(id) REC.monthly[m]=id; });
 }
 function quarterlySave(qi,fields){
   if(REC.quarterly[qi]){ saveGoalField('quarterlyGoals',REC.quarterly[qi],fields); return; }
-  const seed={quarter:'Q'+(qi+1)+' '+CUR_YEAR_STR};
+  const seed={quarter:'Q'+(qi+1)+' '+curYearStr()};
   addGoalRecord('quarterlyGoals',Object.assign(seed,fields),(id)=>{ if(id) REC.quarterly[qi]=id; });
 }
 
@@ -992,7 +1005,7 @@ const MYNAME="John Reuter";
 // those in red) used to get counted as a closing that never happened.
 function autoCounts(){
   const closed=Array(12).fill(0),proj=Array(12).fill(0);
-  LIVE.filter(d=>d.owner===MYNAME&&d.close).forEach(d=>{const dt=new Date(d.close+"T00:00:00");if(dt.getFullYear()!==today.getFullYear())return;const m=dt.getMonth();const c=d.count||1;if(d.closed)closed[m]+=c;else proj[m]+=c;});
+  LIVE.filter(d=>d.owner===MYNAME&&d.close).forEach(d=>{const dt=new Date(d.close+"T00:00:00");if(dt.getFullYear()!==VIEW_YEAR)return;const m=dt.getMonth();const c=d.count||1;if(d.closed)closed[m]+=c;else proj[m]+=c;});
   return {closed,proj};
 }
 const monthActual=(ac,m)=>gnum(G.mManual[m])+ac.closed[m];
@@ -1088,7 +1101,7 @@ function gciRollup(){
   const bySrc={};
   rows.forEach(d=>{
     const yr=new Date(d.close+'T00:00:00').getFullYear();
-    if(yr!==today.getFullYear()) return;
+    if(yr!==VIEW_YEAR) return;
     const src=d.lead||GCI_UNTAGGED;
     const amt=Number(GCI_BASIS==='net'?d.netCommission:d.gci)||0;
     const b=(bySrc[src]=bySrc[src]||{cells:{},total:0,deals:0,untracked:0});
@@ -1125,7 +1138,7 @@ function renderGci(){
   // as "$0 earned from that source" rather than "not filled in yet".
   const missing=srcs.reduce((s,k)=>s+bySrc[k].untracked,0);
   const basis=GCI_BASIS==='net'?'Net commission':'Gross commission (GCI)';
-  document.getElementById('gci-note').innerHTML=`${basis} on closed deals, ${today.getFullYear()} year to date.`
+  document.getElementById('gci-note').innerHTML=`${basis} on closed deals, ${VIEW_YEAR} year to date.`
     +(missing?` <b>${missing}</b> closed deal${missing>1?'s have':' has'} no ${GCI_BASIS==='net'?'net commission':'GCI'} recorded yet, so ${missing>1?'they count as deals but add':'it counts as a deal but adds'} nothing to the totals.`:'');
 }
 document.getElementById('gci-tabs').addEventListener('click',e=>{
@@ -1154,7 +1167,7 @@ function renderTeamCounter(){
   const clList=cl.map(d=>`<div class="tdl static"><span class="tdl-n">${(d.addr||'').split(',')[0]}${d.lead==='Zillow'?' <span style="color:var(--green);font-weight:600">(Zillow)</span>':''}</span><span class="tdl-a">${(d.owner||'').split(' ')[0]}</span><span class="tdl-p">${m$(d.price)}</span><span class="tdl-d">${d.close?mdl(d.close):'—'}</span></div>`).join('');
   let h=`<div class="teamtwo">
     <div class="teamcard"><div class="tch tctog" data-tt="act"><span class="tct">Active ▸</span><span class="tcn">${act.length}</span></div><div class="tcsub">volume ${m$(actVol)} · click header to see deals</div>${teamGrid(byA)}<div class="tdlist" id="tt-act" style="display:none">${actList}</div></div>
-    <div class="teamcard"><div class="tch tctog" data-tt="cl"><span class="tct">Closed · ${today.getFullYear()} YTD ▸</span><span class="tcn">${cl.length}</span></div><div class="tcsub">volume ${m$(clVol)} · click header to see deals</div>${teamGrid(byC)}<div class="tdlist" id="tt-cl" style="display:none">${clList}</div></div>
+    <div class="teamcard"><div class="tch tctog" data-tt="cl"><span class="tct">Closed · ${VIEW_YEAR} YTD ▸</span><span class="tcn">${cl.length}</span></div><div class="tcsub">volume ${m$(clVol)} · click header to see deals</div>${teamGrid(byC)}<div class="tdlist" id="tt-cl" style="display:none">${clList}</div></div>
   </div>`;
   document.getElementById('g-team').innerHTML=h;
   document.querySelectorAll('#g-team .tctog').forEach(tg=>tg.addEventListener('click',()=>{const el=document.getElementById('tt-'+tg.dataset.tt);el.style.display=el.style.display==='none'?'block':'none';}));
@@ -1324,7 +1337,32 @@ document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
 // Year shown in the Goal Tracker / Elite Status / Team Transactions headings.
 // Was hardcoded to 2026 in four places, which would have kept saying 2026
 // through all of next year while the figures underneath had already rolled.
-document.querySelectorAll('.yr').forEach(e=>{e.textContent=today.getFullYear();});
+function paintYearLabels(){ document.querySelectorAll('.yr').forEach(e=>{e.textContent=VIEW_YEAR;}); }
+// Years worth offering: whatever actually appears in the data, plus this year
+// and next, so a new year can be set up before any deal has closed in it.
+function yearChoices(){
+  const ys=new Set([today.getFullYear(), today.getFullYear()+1]);
+  deals.forEach(d=>{ if(d.close){ const y=new Date(d.close+'T00:00:00').getFullYear(); if(y>2000&&y<2100) ys.add(y); } });
+  return [...ys].sort((a,b)=>b-a);
+}
+function paintYearPicker(){
+  const sel=document.getElementById('yearPick'); if(!sel) return;
+  const opts=yearChoices();
+  sel.innerHTML=opts.map(y=>`<option value="${y}"${y===VIEW_YEAR?' selected':''}>${y}</option>`).join('');
+  const note=document.getElementById('yearNote');
+  if(note) note.textContent = VIEW_YEAR===today.getFullYear() ? '' : 'viewing a different year than today';
+}
+// Nothing is refetched: all years are already loaded. Re-parse the cached
+// goals payload for the newly selected year, rebuild the year-scoped closing
+// lists, and repaint.
+function setViewYear(y){
+  VIEW_YEAR=Number(y);
+  if(LAST_GOALS) applyGoalsPayload(LAST_GOALS); else { G.mGoals=Array(12).fill(0); G.qGoals=[0,0,0,0]; }
+  rebuildClosed(); recompute();
+  paintYearLabels(); paintYearPicker(); renderGoals();
+}
+paintYearLabels();
+document.getElementById('yearPick').addEventListener('change',e=>setViewYear(e.target.value));
 loadDeals();
 loadSchema();
 loadGoals(()=>{ if(document.getElementById('view-goals').classList.contains('active')) renderGoals(); });
