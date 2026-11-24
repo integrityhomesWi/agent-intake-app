@@ -211,6 +211,9 @@
   .ptbl tr.pdetail{display:none}
   .ptbl tr.pdetail.show{display:table-row}
   .pdhead{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;margin:0 0 8px}
+  .pdcat{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--navy);font-weight:700;
+         border-top:1px solid var(--line);padding-top:9px;margin-top:3px}
+  .pdcat:first-child{border-top:none;padding-top:0;margin-top:0}
   @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.qgrid{grid-template-columns:repeat(2,1fr)}.gcols,.gcols2,.pl2{grid-template-columns:1fr}.vips{grid-template-columns:repeat(2,1fr)}.tblhead{display:none}.dhead{grid-template-columns:1fr auto auto;row-gap:8px}.dhead .ms,.dhead .emc,.dhead .h-side,.dhead .h-price,.dhead .h-agent,.dhead .h-title,.dhead .h-next,.dhead .h-sched{display:none}.grid{grid-template-columns:1fr}}
   .livebar{font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
@@ -1325,6 +1328,7 @@ function prospectDetailHTML(which,i,row){
   const raw = row._raw||{};
   const out=[];
   cats.forEach(cat=>{
+    const block=[];
     cat[1].forEach(f=>{
       const slug=slugName(f);
       if(shown.has(slug)||skip.has(slug)) return;
@@ -1332,8 +1336,11 @@ function prospectDetailHTML(which,i,row){
       const ctl=LISTING_SELECTS[slug]
         ? `<select data-p="${which}" data-i="${i}" data-f="${slug}">${pOpts(['',...LISTING_SELECTS[slug]],v)}</select>`
         : `<input data-p="${which}" data-i="${i}" data-f="${slug}" value="${v.replace(/"/g,'&quot;')}" placeholder="—">`;
-      out.push(`<div class="lkv"><span>${f}</span>${ctl}</div>`);
+      block.push(`<div class="lkv"><span>${f}</span>${ctl}</div>`);
     });
+    // a category whose every field is already in the summary row would
+    // otherwise leave a heading with nothing under it
+    if(block.length) out.push(`<div class="pdcat">${cat[0]}</div>`, ...block);
   });
   return out.join('')||'<div class="sub2">No other fields on this record.</div>';
 }
