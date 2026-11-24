@@ -198,10 +198,12 @@
   .pwrap{overflow-x:auto}
   .ptbl{border-collapse:collapse;font-size:12.5px;min-width:100%}
   .ptbl th,.ptbl td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
-  .ptbl td.pname{white-space:normal;min-width:240px;max-width:300px;padding-top:8px}
+  .ptbl td.pname{white-space:normal;min-width:190px}
+  .ptbl tr[data-prow]>td{border-bottom:none;padding-bottom:2px}
+  .ptbl tr.pnotesrow>td{padding:0 9px 10px;white-space:normal}
   .ptbl .pnm{font-weight:600;color:var(--navy);margin-bottom:4px}
-  .ptbl textarea.pnotes{display:block;width:100%;font:inherit;font-size:12px;line-height:1.35;color:var(--ink);
-    border:1px solid transparent;border-radius:5px;padding:3px 5px;background:transparent;resize:vertical;min-height:46px}
+  .ptbl textarea.pnotes{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:12px;line-height:1.45;
+    color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;resize:vertical;min-height:58px}
   .ptbl textarea.pnotes:hover{border-color:var(--line);background:#fff}
   .ptbl textarea.pnotes:focus{border-color:var(--blue);background:#fff;outline:none}
   .ptbl thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;background:#eef2f6}
@@ -1356,10 +1358,11 @@ function paintProspectTable(which, rows, fields, firstCol, labelOf, stat, emptyM
     ? '<thead><tr><th></th><th>'+firstCol+'</th>'+fields.map(f=>`<th>${f[0]}</th>`).join('')+'</tr></thead><tbody>'
       + rows.map((r,i)=>
           `<tr data-prow="${which}-${i}"><td class="pcaret" data-ptog="${which}-${i}">&#9654;</td>`
-          + `<td class="pname"><div class="pnm">${labelOf(r)}</div>`
-          + `<textarea class="pnotes" rows="3" placeholder="Notes…" data-p="${which}" data-i="${i}" data-f="notes">`
-          + String((r._raw&&r._raw.notes)||'').replace(/</g,'&lt;') + `</textarea></td>`
+          + `<td class="pname"><div class="pnm">${labelOf(r)}</div></td>`
           + pCell(fields,i,r._raw||{},which) + '</tr>'
+          + `<tr class="pnotesrow"><td colspan="${fields.length+2}">`
+          + `<textarea class="pnotes" rows="3" placeholder="Notes…" data-p="${which}" data-i="${i}" data-f="notes">`
+          + String((r._raw&&r._raw.notes)||'').replace(/</g,'&lt;') + `</textarea></td></tr>`
           + `<tr class="pdetail" data-pdet="${which}-${i}"><td colspan="${fields.length+2}">`
           + `<p class="pdhead">Everything else on this record</p>`
           + `<div class="lgrid">${prospectDetailHTML(which,i,r)}</div></td></tr>`
