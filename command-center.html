@@ -205,6 +205,12 @@
   .ptbl input:hover,.ptbl select:hover{border-color:var(--line);background:#fff}
   .ptbl input:focus,.ptbl select:focus{border-color:var(--blue);background:#fff;outline:none}
   .pempty{color:var(--muted);font-size:13px;padding:10px 2px}
+  .ptbl td.pcaret{cursor:pointer;color:var(--muted);user-select:none;width:28px;text-align:center}
+  .ptbl tr.open td.pcaret{color:var(--navy)}
+  .ptbl tr.pdetail>td{background:#f7f9fb;padding:14px 16px;white-space:normal}
+  .ptbl tr.pdetail{display:none}
+  .ptbl tr.pdetail.show{display:table-row}
+  .pdhead{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:700;margin:0 0 8px}
   @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.qgrid{grid-template-columns:repeat(2,1fr)}.gcols,.gcols2,.pl2{grid-template-columns:1fr}.vips{grid-template-columns:repeat(2,1fr)}.tblhead{display:none}.dhead{grid-template-columns:1fr auto auto;row-gap:8px}.dhead .ms,.dhead .emc,.dhead .h-side,.dhead .h-price,.dhead .h-agent,.dhead .h-title,.dhead .h-next,.dhead .h-sched{display:none}.grid{grid-template-columns:1fr}}
   .livebar{font-size:12px;padding:8px 14px;border-radius:8px;margin-bottom:12px;display:none}
   .livebar.load{display:block;background:#e7f0f8;color:var(--blue);border:1px solid #cfe0f0}
@@ -1308,17 +1314,56 @@ function renderProspects(){
     'No buyer leads yet. They arrive from the intake app, or add one in the tracker.');
   wireProspects();
 }
+// The summary row shows the handful of fields that matter at this stage; the
+// rest of the record lives behind the caret, same as the Listings tab, so a
+// prospect is never a dead end where you have to open Airtable to see more.
+function prospectDetailHTML(which,i,row){
+  const cats = which==='sp' ? SCHEMA.listings : SCHEMA.buyerleads;
+  if(!cats||!cats.length) return '<div class="sub2">Loading the field list…</div>';
+  const shown = new Set((which==='sp'?SP_FIELDS:BP_FIELDS).map(f=>f[1]));
+  const skip = new Set(which==='sp' ? ['address','status'] : ['buyer_1_name']);
+  const raw = row._raw||{};
+  const out=[];
+  cats.forEach(cat=>{
+    cat[1].forEach(f=>{
+      const slug=slugName(f);
+      if(shown.has(slug)||skip.has(slug)) return;
+      const v=raw[slug]==null?'':String(raw[slug]);
+      const ctl=LISTING_SELECTS[slug]
+        ? `<select data-p="${which}" data-i="${i}" data-f="${slug}">${pOpts(['',...LISTING_SELECTS[slug]],v)}</select>`
+        : `<input data-p="${which}" data-i="${i}" data-f="${slug}" value="${v.replace(/"/g,'&quot;')}" placeholder="—">`;
+      out.push(`<div class="lkv"><span>${f}</span>${ctl}</div>`);
+    });
+  });
+  return out.join('')||'<div class="sub2">No other fields on this record.</div>';
+}
 function paintProspectTable(which, rows, fields, firstCol, labelOf, stat, emptyMsg){
   document.getElementById(which+'-stats').innerHTML = rows.length
     ? stat
     : `<span class="pempty">${emptyMsg}</span>`;
   document.getElementById(which+'-tbl').innerHTML = rows.length
-    ? '<thead><tr><th>'+firstCol+'</th>'+fields.map(f=>`<th>${f[0]}</th>`).join('')+'</tr></thead><tbody>'
-      + rows.map((r,i)=>`<tr><td class="pname">${labelOf(r)}</td>`+pCell(fields,i,r._raw||{},which)+'</tr>').join('')
+    ? '<thead><tr><th></th><th>'+firstCol+'</th>'+fields.map(f=>`<th>${f[0]}</th>`).join('')+'</tr></thead><tbody>'
+      + rows.map((r,i)=>
+          `<tr data-prow="${which}-${i}"><td class="pcaret" data-ptog="${which}-${i}">&#9654;</td><td class="pname">${labelOf(r)}</td>`
+          + pCell(fields,i,r._raw||{},which) + '</tr>'
+          + `<tr class="pdetail" data-pdet="${which}-${i}"><td colspan="${fields.length+2}">`
+          + `<p class="pdhead">Everything else on this record</p>`
+          + `<div class="lgrid">${prospectDetailHTML(which,i,r)}</div></td></tr>`
+        ).join('')
       + '</tbody>'
     : '';
 }
 function wireProspects(){
+  document.querySelectorAll('#view-prospects [data-ptog]').forEach(c=>{
+    c.addEventListener('click',()=>{
+      const id=c.dataset.ptog;
+      const det=document.querySelector(`#view-prospects [data-pdet="${id}"]`);
+      const row=document.querySelector(`#view-prospects [data-prow="${id}"]`);
+      const open=det.classList.toggle('show');
+      row.classList.toggle('open',open);
+      c.innerHTML = open ? '&#9660;' : '&#9654;';
+    });
+  });
   document.querySelectorAll('#view-prospects [data-p]').forEach(el=>{
     el.addEventListener('change',()=>{
       const which=el.dataset.p, i=+el.dataset.i, f=el.dataset.f;
