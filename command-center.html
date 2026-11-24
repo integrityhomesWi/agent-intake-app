@@ -1334,9 +1334,15 @@ function wireProspects(){
 // LST is loaded from the sheet's Listings tab in loadDeals. It used to be a
 // 17-row hardcoded LISTINGS_SEED saved into browser localStorage, which meant
 // John's dashboard edits and Lindsay's sheet edits never reached each other.
-const STATUS_OPTS=["Exclusive","Delayed","Active","Active w/Offer","Withdrawn","Expired","Sold"];
+// Must stay in step with the Listings Status choices in Airtable. This list
+// had drifted: it offered Exclusive/Delayed/Expired, which Airtable did not
+// have (they were being auto-created on first use), while Coming Soon and
+// New Lead existed in Airtable and could not be picked here at all - so a
+// listing could not be moved into or out of the Prospects tab from the
+// dashboard. Ordered roughly by where a listing is in its life.
+const STATUS_OPTS=["Coming Soon","New Lead","Exclusive","Delayed","Active","Active w/Offer","Withdrawn","Expired","Sold"];
 function lopts(arr,cur){return arr.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('');}
-function lstColor(s){return {"Active":"b-green","Active w/Offer":"b-blue","Sold":"b-purple","Exclusive":"b-gray","Delayed":"b-amber","Withdrawn":"b-red","Expired":"b-red"}[s]||"b-gray";}
+function lstColor(s){return {"Coming Soon":"b-blue","New Lead":"b-amber","Active":"b-green","Active w/Offer":"b-blue","Sold":"b-purple","Exclusive":"b-gray","Delayed":"b-amber","Withdrawn":"b-red","Expired":"b-red"}[s]||"b-gray";}
 // Everything except Address/Agent/Status/List/Current price/Notes (special-
 // cased above them, since Address doubles as the row key and Notes gets its
 // own full-width box) is rendered generically from SCHEMA.listings - a
