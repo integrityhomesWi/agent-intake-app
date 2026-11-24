@@ -256,7 +256,7 @@
 
   <div id="view-goals" class="view">
     <div class="gsec">
-      <div class="gtitle">2026 Goal Tracker — Actual &amp; Projected</div>
+      <div class="gtitle"><span class="yr"></span> Goal Tracker — Actual &amp; Projected</div>
       <div class="ytd">
         <span class="ytd-l">Actual (closed)</span>
         <span class="ytd-n" id="g-ytd">0 / 45</span>
@@ -288,10 +288,10 @@
       <div class="gciwrap"><table class="gcitbl" id="gci-tbl"></table></div>
       <div class="gcinote" id="gci-note"></div>
     </div>
-    <div class="gsec"><div class="gtitle">Team Transactions <span style="font-weight:400;color:var(--muted);font-size:12px">— other agents only · closed = 2026 YTD · not in your goal</span></div><div id="g-team"></div></div>
+    <div class="gsec"><div class="gtitle">Team Transactions <span style="font-weight:400;color:var(--muted);font-size:12px">— other agents only · closed = <span class="yr"></span> YTD · not in your goal</span></div><div id="g-team"></div></div>
     <div class="gcols">
       <div class="gsec"><div class="gtitle">Agent Cap</div><div id="g-cap"></div></div>
-      <div class="gsec"><div class="gtitle">Elite Status — 2026</div><div class="elite" id="g-elite"></div>
+      <div class="gsec"><div class="gtitle">Elite Status — <span class="yr"></span></div><div class="elite" id="g-elite"></div>
         <div class="elite-leg">Click a box to cycle: ▢ open · <b style="color:var(--red)">■</b> behind · <b style="color:#1c1c1c">■</b> on track · <b style="color:var(--green)">■</b> closed</div></div>
     </div>
     <div class="gcols2">
@@ -418,6 +418,9 @@ function recompute(){ LIVE=deals.filter(d=>!d.cancelled); ACT=LIVE.filter(d=>!d.
 const CNT=a=>a.reduce((s,d)=>s+(d.count||1),0);
 
 const today=new Date();today.setHours(0,0,0,0);
+// Is this deal's closing date in the year the dashboard is currently showing?
+// Used anywhere a figure is meant to be year-to-date.
+const inCurYear=d=>!!d.close&&new Date(d.close+'T00:00:00').getFullYear()===today.getFullYear();
 const D=d=>Math.round((new Date(d+"T00:00:00")-today)/86400000);
 const md=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'numeric',day:'numeric'});
 const mdl=d=>new Date(d+"T00:00:00").toLocaleDateString('en-US',{month:'short',day:'numeric'});
@@ -640,8 +643,12 @@ function loadDeals(){
     deals=rows.filter(r=>r.source==='active').map(adaptActive)
          .concat(rows.filter(r=>r.source==='closed').map(adaptClosed));
     LST=rows.filter(r=>r.source==='listing').map(adaptListing);
-    MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME);
-    TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME);
+    // Year-scoped on purpose. Everything downstream of these two is a
+    // year-to-date figure - the Volume headline, the per-quarter deal lists,
+    // the Team Transactions counters - so without the filter they would carry
+    // last year's closings forward and never reset in January.
+    MY_CLOSED=deals.filter(d=>d.closed&&d.owner===MYNAME&&inCurYear(d));
+    TEAM_CLOSED=deals.filter(d=>d.closed&&d.owner!==MYNAME&&inCurYear(d));
     recompute(); afterLoad();
     setLive('ok','✓ Live from the tracker · '+CNT(ACT)+' active · '+LST.length+' listings · '+MY_CLOSED.length+' of your closings');
     try{delete window[cb];}catch(e){}
@@ -894,7 +901,13 @@ function applyGoalsPayload(res){
     G.qGoals[qi]=Number(r.goal)||0;
     REC.quarterly[qi]=r.recordId;
   });
-  const yr=(res.annualSettings||[]).find(r=>String(r.year)===CUR_YEAR_STR)||(res.annualSettings||[])[0];
+  // Same year-scoping as the month/quarter rows above. The old fallback here
+  // was "||annualSettings[0]", which in a new year silently selected LAST
+  // year's row: the cap displayed last year's numbers, and because REC.annual
+  // then held that row's id, the first cap edit of the new year overwrote the
+  // previous year's record. Rows with no Year at all are still accepted.
+  const annualRows=(res.annualSettings||[]).filter(r=>!otherYear(r.year));
+  const yr=annualRows.find(r=>String(r.year)===CUR_YEAR_STR)||annualRows[0];
   if(yr){G.cap={goal:yr.cap_goal?String(yr.cap_goal):"",paid:yr.cap_paid?String(yr.cap_paid):""};REC.annual=yr.recordId;}
   else{G.cap={goal:"",paid:""};REC.annual=null;}
   const pn=res.pipelineNotes||[];
@@ -1141,7 +1154,7 @@ function renderTeamCounter(){
   const clList=cl.map(d=>`<div class="tdl static"><span class="tdl-n">${(d.addr||'').split(',')[0]}${d.lead==='Zillow'?' <span style="color:var(--green);font-weight:600">(Zillow)</span>':''}</span><span class="tdl-a">${(d.owner||'').split(' ')[0]}</span><span class="tdl-p">${m$(d.price)}</span><span class="tdl-d">${d.close?mdl(d.close):'—'}</span></div>`).join('');
   let h=`<div class="teamtwo">
     <div class="teamcard"><div class="tch tctog" data-tt="act"><span class="tct">Active ▸</span><span class="tcn">${act.length}</span></div><div class="tcsub">volume ${m$(actVol)} · click header to see deals</div>${teamGrid(byA)}<div class="tdlist" id="tt-act" style="display:none">${actList}</div></div>
-    <div class="teamcard"><div class="tch tctog" data-tt="cl"><span class="tct">Closed · 2026 YTD ▸</span><span class="tcn">${cl.length}</span></div><div class="tcsub">volume ${m$(clVol)} · click header to see deals</div>${teamGrid(byC)}<div class="tdlist" id="tt-cl" style="display:none">${clList}</div></div>
+    <div class="teamcard"><div class="tch tctog" data-tt="cl"><span class="tct">Closed · ${today.getFullYear()} YTD ▸</span><span class="tcn">${cl.length}</span></div><div class="tcsub">volume ${m$(clVol)} · click header to see deals</div>${teamGrid(byC)}<div class="tdlist" id="tt-cl" style="display:none">${clList}</div></div>
   </div>`;
   document.getElementById('g-team').innerHTML=h;
   document.querySelectorAll('#g-team .tctog').forEach(tg=>tg.addEventListener('click',()=>{const el=document.getElementById('tt-'+tg.dataset.tt);el.style.display=el.style.display==='none'?'block':'none';}));
@@ -1308,6 +1321,10 @@ document.querySelectorAll('.mtab').forEach(t=>t.addEventListener('click',()=>{
 }));
 
 // go live
+// Year shown in the Goal Tracker / Elite Status / Team Transactions headings.
+// Was hardcoded to 2026 in four places, which would have kept saying 2026
+// through all of next year while the figures underneath had already rolled.
+document.querySelectorAll('.yr').forEach(e=>{e.textContent=today.getFullYear();});
 loadDeals();
 loadSchema();
 loadGoals(()=>{ if(document.getElementById('view-goals').classList.contains('active')) renderGoals(); });
